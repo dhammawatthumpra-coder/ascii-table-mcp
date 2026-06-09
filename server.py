@@ -51,7 +51,7 @@ def make_table(
     headers: list[str] | None = None,
     rows: list[list[str]] | None = None,
     data: list[list[str]] | None = None,
-    format: str = "box",
+    fmt: str = "box",
 ) -> str:
     """Render data as a table.
 
@@ -59,16 +59,16 @@ def make_table(
         headers: Optional list of column header strings
         rows: List of data rows, each a list of strings
         data: Alias for rows -- pass data here if you prefer (cannot use both)
-        format: "box" (default) for Unicode box-drawing ---┬---, "pipe" for Markdown pipe table, "grid" for ASCII +---+
+        fmt: "box" (default) for Unicode box-drawing, "pipe" for Markdown pipe table, "grid" for ASCII +---+, "safe" for char-count padding
 
     Returns:
-        Formatted table as a Markdown code block (box/grid) or raw pipe table.
+        Formatted table as a Markdown code block (box/grid/safe) or raw pipe table.
     """
     r = rows if rows is not None else (data if data is not None else [])
     if not r:
         return "(no data provided -- pass rows= or data=)"
     all_rows = [headers] + r if headers else r
-    return _finish(_format_output(all_rows, format), format)
+    return _finish(_format_output(all_rows, fmt), fmt)
 
 
 @server.tool()
@@ -76,15 +76,15 @@ def make_table_from_csv(
     csv_text: str,
     delimiter: str = ",",
     has_header: bool = True,
-    format: str = "box",
+    fmt: str = "box",
 ) -> str:
     """Parse a CSV/TSV string and render as a table.
 
     Args:
         csv_text: Raw CSV-formatted text
-        delimiter: Field delimiter (default: comma). Use '\\t' for TSV.
+        delimiter: Field delimiter (default: comma). Use '\\\\t' for TSV.
         has_header: If True (default), first row is treated as column headers
-        format: "box" (default), "pipe", or "grid"
+        fmt: "box" (default), "pipe", "grid", or "safe"
 
     Returns:
         Formatted table.
@@ -96,14 +96,14 @@ def make_table_from_csv(
     if not parsed:
         return "(empty CSV data)"
     all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
-    return _finish(_format_output(all_rows, format), format)
+    return _finish(_format_output(all_rows, fmt), fmt)
 
 
 @server.tool()
 def make_table_from_json(
     json_data: str,
     has_header: bool = True,
-    format: str = "box",
+    fmt: str = "box",
 ) -> str:
     """Parse a JSON array and render as a table.
 
@@ -114,7 +114,7 @@ def make_table_from_json(
     Args:
         json_data: JSON string
         has_header: If True (default), first row is treated as column headers
-        format: "box" (default), "pipe", or "grid"
+        fmt: "box" (default), "pipe", "grid", or "safe"
 
     Returns:
         Formatted table.
@@ -131,17 +131,17 @@ def make_table_from_json(
         all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
     else:
         return "Error: Expected a 2D array or {headers, rows} object"
-    return _finish(_format_output(all_rows, format), format)
+    return _finish(_format_output(all_rows, fmt), fmt)
 
 
 @server.tool()
-def make_table_preview(style: str = "thai", format: str = "box") -> str:
+def make_table_preview(style: str = "thai", fmt: str = "box") -> str:
     """Print a preview/example table with sample data.
 
     Args:
         style: "thai" (default) -- example with Thai/Pali characters
                "simple" -- plain English example
-        format: "box" (default), "pipe", or "grid"
+        fmt: "box" (default), "pipe", "grid", or "safe"
 
     Returns:
         Formatted example table.
@@ -156,7 +156,7 @@ def make_table_preview(style: str = "thai", format: str = "box") -> str:
             ["Name", "Role", "Status"],
             ["Alice", "Admin", "Active"],
         ]
-    return _finish(_format_output(rows, format), format)
+    return _finish(_format_output(rows, fmt), fmt)
 
 
 @server.tool()
