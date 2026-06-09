@@ -192,7 +192,58 @@ hermes mcp add ascii-table --command "python -m ascii_table_mcp"
 
 ---
 
-## Why wcwidth?
+## Thai Character Width Compensation
+
+Discord, browser code blocks, และ terminal บางประเภท **ไม่รองรับ zero-width combining marks** (` ิ ี ึ ื ั ุ ู ฺ`) — แต่ละ mark จะกิน width 1 แทนที่จะเป็น 0 ทำให้ตารางภาษาไทย/บาลี drift
+
+### ปัญหา
+
+```text
++------------+------+-------+
+|    ชื่อ     | ราคา | จำนวน |   ← ชื่อ + ื + ่ = width 3 ใน Discord
+| ก๋วยเตี๋ยว |   45 |     3 |   ← ก๋วยเตี๋ยว + ๋ + ี + ๋ = width 11
++------------+------+-------+
+         ↑ width 12 ใน wcwidth แต่ Discord render 13 → │ ขยับ!
+```
+
+`ก๋วยเตี๋ยว` len=10, wcwidth=7 → gap=3 (3 zero-width marks)
+
+### Solution: `safe_width=True`
+
+เมื่อเปิด safe_width โปรแกรมจะคำนวณ:
+
+1. คำนวณ column width ด้วย `len()` แทน `wcwidth` (นับทุกตัวอักษรเป็น width 1)
+2. เพิ่ม `gap = len_cell - wcwidth_cell` ให้ padded_lens (ชดเชย mark ที่ Platform render)
+3. เพิ่ม buffer +1 สำหรับ font overhang
+
+```text
++----------------+------+-------+
+|      ชื่อ      | ราคา | จำนวน |   ← extra 4 spaces
+| ก๋วยเตี๋ยว     |   45 |     3 |   ← gap(3) + buffer(1) = 4 extra
++----------------+------+-------+
+```
+
+### วิธีเรียกใช้
+
+```json
+{
+  "headers": ["ชื่อ", "ราคา"],
+  "rows": [["ก๋วยเตี๋ยว", "45"]],
+  "fmt": "grid",
+  "safe_width": true
+}
+```
+
+หรือผ่าน Python API:
+
+```python
+from ascii_table_mcp.generate_table import render_ascii_grid
+table = render_ascii_grid(rows, safe_width=True)
+```
+
+### อนาคต: Character Width Database
+
+การคำนวณ width แบบ wcwidth หรือ len() ยัง approximation — อนาคตอาจสร้าง **ตาราง lookup ความกว้างจริงของอักขระไทยแต่ละตัว** สำหรับ platform/font หลักๆ (Discord, Terminal Windows, Terminal Linux) เพื่อให้ alignment แน่นอน 100%
 
 ภาษาไทยและบาลีมีอักขระ **zero-width combining marks** เช่น:
 
