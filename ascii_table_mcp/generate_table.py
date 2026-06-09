@@ -438,12 +438,13 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
     # When safe_width=True, add extra padding equal to the gap between
     # char-count and display-width (Discord renders zero-width marks as width 1).
     # e.g. "ก๋วยเตี๋ยว" len=10, wcwidth=7 → gap=3 → extra 3 spaces per column.
+    # A small buffer (+1) compensates for remaining font overhang on Discord.
     if safe_width:
         dw_widths = get_column_widths(normalised, col_count, width_fn=_display_width)
         for i in range(col_count):
             gap = widths[i] - dw_widths[i]
             if gap > 0:
-                padded_lens[i] += gap
+                padded_lens[i] += gap + 1  # gap + 1 buffer for Discord font overhang
 
     # Detect numeric columns (ozh/ascii-tables logic)
     if auto_format:
