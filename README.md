@@ -18,11 +18,12 @@ MCP server สำหรับสร้างตาราง (ASCII grid / Unicod
 
 ## Features
 
-- **3 formats**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`)
+- **4 table styles**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`), `safe` (char-count padding)
+- **10 grid sub-styles**: `mysql`, `separated`, `compact`, `gfm`, `reddit`, `rounded`, `rst`, `box`, `unicode`, `dots`
+- **Auto-format**: รองรับตัวเลข (right-align) และหัวตาราง (center) — ได้แรงบันดาลใจจาก [ozh/ascii-tables](https://github.com/ozh/ascii-tables)
 - **Thai/Pali/CJK**: zero-width combining marks (พินทุ, สระบน/ล่าง) alignment ไม่เพี้ยน
-- **Safe mode**: char-count padding สำหรับ platform ที่ zero-width ≠ 0
-- **5 MCP tools**: `make_table`, `make_table_from_csv`, `make_table_from_json`, `make_table_preview`, `debug_table`
-- **Validation**: `validate_table_text` ตรวจสอบโครงสร้างตาราง, `analyze_table` วิเคราะห์ alignment
+- **Safe width mode**: extra padding ชดเชย platform ที่ zero-width ≠ 0 (Discord, browser code blocks)
+- **7 MCP tools**: `make_table`, `make_table_from_csv`, `make_table_from_json`, `make_table_preview`, `debug_table`, `analyze_table`, `validate_table_text`
 - **Zero external dependencies** (beyond `mcp` + `wcwidth`)
 
 ---
@@ -70,36 +71,85 @@ hermes mcp add ascii-table --command "python -m ascii_table_mcp"
 
 ### `make_table`
 
-สร้างตารางจาก headers + rows
+สร้างตารางจาก headers + rows รองรับ style, auto-format, safe width
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `headers` | `list[str]` | — | หัวตาราง |
 | `rows` / `data` | `list[list[str]]` | — | แถวข้อมูล |
-| `fmt` | `str` | `"box"` | `"grid"`, `"box"`, `"pipe"`, `"safe"` |
+| `fmt` | `str` | `"grid"` | `"grid"`, `"box"`, `"pipe"`, `"safe"` |
+| `style` | `str` | `"mysql"` | ดูตาราง Styles ด้านล่าง |
+| `auto_format` | `bool` | `true` | right-align ตัวเลข, center หัวตาราง |
+| `safe_width` | `bool` | `false` | extra padding สำหรับ Discord/browser |
+
+**ตัวอย่าง:** `style="separated"` พร้อม auto-format
 
 ```json
 {
-  "headers": ["ชื่อไฟล์", "หน้าที่", "สถานะ"],
+  "headers": ["สินค้า", "ราคา", "จำนวน"],
   "rows": [
-    ["generate_table.py", "core rendering engine", "✅"],
-    ["server.py", "MCP wrapper", "✅"],
-    ["README.md", "documentation", "✅"]
+    ["ก๋วยเตี๋ยว", "45", "3"],
+    ["ข้าวผัด", "55", "2"],
+    ["รวม", "100", "5"]
   ],
-  "fmt": "grid"
+  "fmt": "grid",
+  "style": "separated"
 }
 ```
 
 ผลลัพธ์:
 
 ```text
-+-------------------+-----------------------+-------+
-| ชื่อไฟล์             | หน้าที่                  | สถานะ |
-+-------------------+-----------------------+-------+
-| generate_table.py | core rendering engine | ✅    |
-| server.py         | MCP wrapper           | ✅    |
-| README.md         | documentation         | ✅    |
-+-------------------+-----------------------+-------+
++============+======+=======+
+|   สินค้า    | ราคา | จำนวน |
++============+======+=======+
++------------+------+-------+
+| ก๋วยเตี๋ยว |   45 |     3 |
++------------+------+-------+
+| ข้าวผัด    |   55 |     2 |
++------------+------+-------+
+| รวม        |  100 |     5 |
++------------+------+-------+
+```
+
+สังเกต: `auto_format=true` ทำให้คอลัมน์ "ราคา" กับ "จำนวน" ถูกจัดชิดขวา (ตัวเลข) หัวตารางถูกจัดกลาง
+
+**Safe width สำหรับ Discord:**
+
+```json
+{
+  "rows": [["ชื่อ", "ราคา"], ["ก๋วยเตี๋ยว", "45"]],
+  "fmt": "grid",
+  "safe_width": true
+}
+```
+
+ผลลัพธ์มี padding เพิ่มตามจำนวน zero-width marks เพื่อชดเชย Discord/browser ที่ render marks ด้วย width > 0
+
+**Style `compact` (ไม่มีกรอบ):**
+
+```json
+{ "headers": ["A", "B"], "rows": [["x", "1"]], "fmt": "grid", "style": "compact" }
+```
+
+```text
+   A    B  
+ ----- --- 
+  x     1  
+```
+
+**Style `rounded`:**
+
+```json
+{ "headers": ["A"], "rows": [["x"]], "fmt": "grid", "style": "rounded" }
+```
+
+```text
+.---.
+| A |
+:---:
+| x |
+'---'
 ```
 
 ### `make_table_from_csv`
@@ -170,14 +220,31 @@ wcswidth("กมฺม") → 3  ✅ (พินทุ width 0)
 
 ---
 
-## Format Comparison
+## Grid Styles
+
+10 styles จาก [ozh/ascii-tables](https://github.com/ozh/ascii-tables):
+
+| Style | Top | Header sep | Data sep | Bottom | Notes |
+|-------|-----|-----------|----------|--------|-------|
+| `mysql` | `+--+` | `+--+` | `+--+` | `+--+` | default |
+| `separated` | `+==+` | `+==+` | `+--+` | `+--+` | หัวตารางหนา |
+| `compact` | none | ` --- ` | none | none | ไม่มีกรอบ |
+| `gfm` | none | `\|--\|` | none | none | GitHub style |
+| `reddit` | none | `--\|--` | none | none | Reddit style |
+| `rounded` | `.--.` | `:+:` | none | `'--'` | มุมมน |
+| `rst` | `+==+` | `+--+` | `+==+` | `+==+` | reStructuredText |
+| `box` | `┌┬┐` | `├┼┤` | `├┼┤` | `└┴┘` | Unicode box |
+| `unicode` | `╔╦╗` | `╠╬╣` | `╠╬╣` | `╚╩╝` | double-line |
+| `dots` | `┌┬┐` | `├┼┤` | none | `└┴┘` | no row separators |
+
+### Format Comparison
 
 | Format | Example | เหมาะกับ |
 |--------|---------|----------|
 | `grid` | `+----+----+` | Default — terminal, code review, GitHub |
-| `box` | `┌────┬────┐` | presentation, formal doc |
-| `safe` | `┌────┬────┐` | Browser/Discord ที่ zero-width ≠ 0 |
-| `pipe` | `\| \| \|` | Markdown, ไม่แนะนำสำหรับตารางไทย |
+| `box` / `safe` | `┌────┬────┐` | presentation, formal doc |
+| `pipe` | `\| \| \|` | Markdown |
+| `grid` + `safe_width=True` | `+------+----+` | Discord, browser ที่ zero-width ≠ 0 |
 
 ---
 
@@ -229,7 +296,10 @@ Core rendering (`render_table`, `render_ascii_grid`, `render_pipe_table`, `rende
 
 ## Related
 
+- [ozh/ascii-tables](https://github.com/ozh/ascii-tables) — ต้นแบบ table styles (mysql, separated, compact, gfm, reddit, rounded, rst, box, unicode, dots)
 - [dmarsters/ascii-art-mcp](https://github.com/dmarsters/ascii-art-mcp) — decorative ASCII art (shaded boxes, styled tables)
+- [schachmat/wego](https://github.com/schachmat/wego) — Go terminal weather app, uses go-runewidth (equivalent to our wcwidth)
+- [akiomik/seaw](https://github.com/akiomik/seaw) — Scala port of wcwidth
 - [wcwidth](https://pypi.org/project/wcwidth/) — Python port of wcwidth(3)
 
 ---
