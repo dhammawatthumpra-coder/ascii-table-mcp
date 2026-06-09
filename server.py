@@ -194,9 +194,13 @@ def analyze_table(table_text: str) -> str:
     return "\n".join(lines)
 
 
-if __name__ == "__main__":
+def main():
     if "--http" in sys.argv:
         import uvicorn
         uvicorn.run(server.sse_app(), host="127.0.0.1", port=8000)
     else:
         server.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()
