@@ -29,7 +29,8 @@ Width handling:
 import sys
 import csv
 import json
-
+import re
+import unicodedata
 # ─── Display width: wcwidth directly (Thai/Pali combining marks handled correctly) ───
 try:
     from wcwidth import wcswidth
@@ -425,12 +426,23 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
 
     # padded_lens = char-count after padding (for correct border length)
     padded_lens = [0] * col_count
+    mark_penalties = [0] * col_count  # extra padding per zero-width mark (for Discord)
     for row in normalised:
         for i, cell in enumerate(row):
             padded = pad_cell(cell, widths[i])
             total = len(padded) + 2
             if total > padded_lens[i]:
                 padded_lens[i] = total
+            # Count zero-width combining marks for Discord compensation
+            if safe_width:
+                marks = sum(1 for c in cell if unicodedata.combining(c))
+                if marks > mark_penalties[i]:
+                    mark_penalties[i] = marks
+
+    # Apply Discord mark penalties to padded_lens
+    if safe_width:
+        for i in range(col_count):
+            padded_lens[i] += mark_penalties[i]
 
     # Detect numeric columns (ozh/ascii-tables logic)
     if auto_format:
