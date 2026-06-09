@@ -37,7 +37,13 @@ python server.py
 ### Register with Hermes
 
 ```bash
-hermes mcp add ascii-table --command "python F:\\_Ai\\ascii-table-mcp\\server.py"
+# clone ไว้ที่ไหนก็ใช้ path นั้น
+git clone https://github.com/dhammawatthumpra-coder/ascii-table-mcp.git
+cd ascii-table-mcp
+pip install -e .
+
+# หรือ add โดยตรง
+hermes mcp add ascii-table --command "python /path/to/ascii-table-mcp/server.py"
 ```
 
 ### Register with Claude Desktop
