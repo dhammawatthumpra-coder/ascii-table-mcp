@@ -394,7 +394,7 @@ def analyze_grid_table(text):
     }
 
 
-def render_ascii_grid(rows, style="mysql", auto_format=True):
+def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
     """Render list-of-lists as ASCII grid table (+---+ style).
 
     Supports multiple styles from ozh/ascii-tables:
@@ -461,7 +461,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True):
 
     # Header row
     cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
-                        is_header=True, has_left=has_left)
+                        is_header=True, has_left=has_left, safe_width=safe_width)
              for i, c in enumerate(normalised[0])]
     l = "" if not has_left else sty["hV"]
     r = "" if not has_right else sty["hV"]
@@ -475,7 +475,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True):
             if has_line_seps:
                 lines.append(sep(sty["ML"], sty["MM"], sty["MR"], sty["sH"]))
             cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
-                                is_header=False, has_left=has_left)
+                                is_header=False, has_left=has_left, safe_width=safe_width)
                      for i, c in enumerate(row)]
             l = "" if not has_left else sty["sV"]
             r = "" if not has_right else sty["sV"]
@@ -488,9 +488,24 @@ def render_ascii_grid(rows, style="mysql", auto_format=True):
 
 
 def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
-               is_header=False, has_left=True):
-    """Format a single grid cell with style-aware alignment."""
-    padded = pad_cell(cell, widths[col_idx])
+               is_header=False, has_left=True, safe_width=False):
+    """Format a single grid cell with style-aware alignment.
+
+    When safe_width=True, zero-width combining marks are counted as width 1
+    (appropriate for Discord/browsers that don't honour wcwidth zero-width).
+    """
+    content = str(cell)
+    dw = _display_width(content)
+    cw = len(content)
+
+    # effective width: dw for terminals, cw for Discord/browsers
+    eff_w = cw if safe_width else dw
+
+    # active column width for padding: max between display width and effective width
+    # This ensures cells with zero-width marks get enough visual padding
+    active_w = max(widths[col_idx], padded_lens[col_idx] - 2) if safe_width else widths[col_idx]
+
+    padded = pad_cell(content, widths[col_idx])
     extra = padded_lens[col_idx] - len(padded) - 2
     if extra > 0:
         padded += ' ' * extra
@@ -499,19 +514,12 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
     align = "l"
     if numeric_cols and col_idx < len(numeric_cols):
         if is_header:
-            align = "c"  # header centered
+            align = "c"
         elif numeric_cols[col_idx]:
-            align = "r"  # numbers right-aligned
+            align = "r"
 
-    # Use _pad_align for alignment (but maintain width offset)
-    cur_len = len(padded)
-    target = widths[col_idx]  # display width target
-
-    # For right-align: push content right
     if align == "r":
-        content = str(cell)
-        # Re-pad with right alignment
-        diff = widths[col_idx] - _display_width(content)
+        diff = active_w - eff_w
         if diff < 0:
             diff = 0
         padded = " " * diff + content
@@ -519,8 +527,7 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
         if extra > 0:
             padded = " " * extra + padded
     elif align == "c" and is_header:
-        content = str(cell)
-        diff = widths[col_idx] - _display_width(content)
+        diff = active_w - eff_w
         if diff < 0:
             diff = 0
         left_pad = diff // 2

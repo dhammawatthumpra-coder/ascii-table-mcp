@@ -33,11 +33,11 @@ from mcp.server.fastmcp import FastMCP
 server = FastMCP("ASCII Table Generator", log_level="WARNING")
 
 
-def _format_output(rows, fmt, style="mysql", auto_format=True):
+def _format_output(rows, fmt, style="mysql", auto_format=True, safe_width=False):
     if fmt == "pipe":
         return render_pipe_table(rows)
     elif fmt == "grid":
-        return render_ascii_grid(rows, style=style, auto_format=auto_format)
+        return render_ascii_grid(rows, style=style, auto_format=auto_format, safe_width=safe_width)
     elif fmt == "safe":
         return render_table_safe(rows)
     else:
@@ -58,6 +58,7 @@ def make_table(
     fmt: str = "grid",
     style: str = "mysql",
     auto_format: bool = True,
+    safe_width: bool = False,
 ) -> str:
     """Render data as a table.
 
@@ -71,6 +72,7 @@ def make_table(
                mysql, separated, compact, gfm, reddit, rounded,
                rst, box, unicode, dots
         auto_format: Auto-detect numeric columns (right-align) and center headers
+        safe_width: Count zero-width combining marks as width 1 (for Discord/browsers)
 
     Returns:
         Formatted table as a Markdown code block (grid/box/safe) or raw pipe table.
@@ -79,7 +81,7 @@ def make_table(
     if not r:
         return "(no data provided -- pass rows= or data=)"
     all_rows = [headers] + r if headers else r
-    return _finish(_format_output(all_rows, fmt, style=style, auto_format=auto_format), fmt)
+    return _finish(_format_output(all_rows, fmt, style=style, auto_format=auto_format, safe_width=safe_width), fmt)
 
 @server.tool()
 def make_table_from_csv(
