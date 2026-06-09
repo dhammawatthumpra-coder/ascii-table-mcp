@@ -25,17 +25,19 @@ from ascii_table_mcp.generate_table import (
     analyze_grid_table,
     validate_table,
     detect_format,
+    TABLE_STYLES,
+    STYLE_NAMES,
 )
 from mcp.server.fastmcp import FastMCP
 
 server = FastMCP("ASCII Table Generator", log_level="WARNING")
 
 
-def _format_output(rows, fmt):
+def _format_output(rows, fmt, style="mysql", auto_format=True):
     if fmt == "pipe":
         return render_pipe_table(rows)
     elif fmt == "grid":
-        return render_ascii_grid(rows)
+        return render_ascii_grid(rows, style=style, auto_format=auto_format)
     elif fmt == "safe":
         return render_table_safe(rows)
     else:
@@ -53,7 +55,9 @@ def make_table(
     headers: list[str] | None = None,
     rows: list[list[str]] | None = None,
     data: list[list[str]] | None = None,
-    fmt: str = "box",
+    fmt: str = "grid",
+    style: str = "mysql",
+    auto_format: bool = True,
 ) -> str:
     """Render data as a table.
 
@@ -61,51 +65,61 @@ def make_table(
         headers: Optional list of column header strings
         rows: List of data rows, each a list of strings
         data: Alias for rows -- pass data here if you prefer (cannot use both)
-        fmt: "box" (default) for Unicode box-drawing, "pipe" for Markdown pipe table, "grid" for ASCII +---+, "safe" for char-count padding
+        fmt: "grid" (default) for ASCII grid, "box" for Unicode box-drawing,
+             "pipe" for Markdown pipe table, "safe" for char-count padding
+        style: Table style (for grid fmt). One of:
+               mysql, separated, compact, gfm, reddit, rounded,
+               rst, box, unicode, dots
+        auto_format: Auto-detect numeric columns (right-align) and center headers
 
     Returns:
-        Formatted table as a Markdown code block (box/grid/safe) or raw pipe table.
+        Formatted table as a Markdown code block (grid/box/safe) or raw pipe table.
     """
     r = rows if rows is not None else (data if data is not None else [])
     if not r:
         return "(no data provided -- pass rows= or data=)"
     all_rows = [headers] + r if headers else r
-    return _finish(_format_output(all_rows, fmt), fmt)
-
+    return _finish(_format_output(all_rows, fmt, style=style, auto_format=auto_format), fmt)
 
 @server.tool()
 def make_table_from_csv(
     csv_text: str,
     delimiter: str = ",",
     has_header: bool = True,
-    fmt: str = "box",
+    fmt: str = "grid",
+    style: str = "mysql",
+    auto_format: bool = True,
 ) -> str:
     """Parse a CSV/TSV string and render as a table.
 
     Args:
         csv_text: Raw CSV-formatted text
-        delimiter: Field delimiter (default: comma). Use '\\t' for TSV.
+        delimiter: Field delimiter (default: comma). Use '\\\\t' for TSV.
         has_header: If True (default), first row is treated as column headers
-        fmt: "box" (default), "pipe", "grid", or "safe"
+        fmt: "grid" (default), "box", "safe", or "pipe"
+        style: Table style (for grid fmt)
+        auto_format: Auto-detect numeric columns
 
     Returns:
         Formatted table.
     """
-    if delimiter == "\\t":
+    if delimiter == "\\\\t":
         delimiter = "\t"
     reader = csv.reader(io.StringIO(csv_text), delimiter=delimiter)
     parsed = list(reader)
     if not parsed:
         return "(empty CSV data)"
     all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
-    return _finish(_format_output(all_rows, fmt), fmt)
+    return _finish(_format_output(all_rows, fmt, style=style, auto_format=auto_format), fmt)
 
 
 @server.tool()
 def make_table_from_json(
     json_data: str,
     has_header: bool = True,
-    fmt: str = "box",
+    fmt: str = "grid",
+    style: str = "mysql",
+    auto_format: bool = True,
 ) -> str:
     """Parse a JSON array and render as a table.
 
@@ -116,7 +130,9 @@ def make_table_from_json(
     Args:
         json_data: JSON string
         has_header: If True (default), first row is treated as column headers
-        fmt: "box" (default), "pipe", "grid", or "safe"
+        fmt: "grid" (default), "box", "safe", or "pipe"
+        style: Table style (for grid fmt)
+        auto_format: Auto-detect numeric columns
 
     Returns:
         Formatted table.
@@ -133,32 +149,35 @@ def make_table_from_json(
         all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
     else:
         return "Error: Expected a 2D array or {headers, rows} object"
-    return _finish(_format_output(all_rows, fmt), fmt)
+    return _finish(_format_output(all_rows, fmt, style=style, auto_format=auto_format), fmt)
 
 
 @server.tool()
-def make_table_preview(style: str = "thai", fmt: str = "box") -> str:
+def make_table_preview(style: str = "thai", fmt: str = "grid",
+                       table_style: str = "mysql") -> str:
     """Print a preview/example table with sample data.
 
     Args:
         style: "thai" (default) -- example with Thai/Pali characters
                "simple" -- plain English example
-        fmt: "box" (default), "pipe", "grid", or "safe"
+        fmt: "grid" (default), "box", "pipe", or "safe"
+        table_style: Table style for grid fmt (mysql, separated, etc.)
 
     Returns:
         Formatted example table.
     """
     if style == "thai":
         rows = [
-            ["List", "Name", "Description"],
-            ["1", "king of the Dhamma", "dhammaraaja"],
+            ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
+            ["กมฺม", "kamma", "นาม", "กรรม"],
+            ["อวิชฺชา", "avijjā", "กิเลส", "ความไม่รู้"],
         ]
     else:
         rows = [
             ["Name", "Role", "Status"],
             ["Alice", "Admin", "Active"],
         ]
-    return _finish(_format_output(rows, fmt), fmt)
+    return _finish(_format_output(rows, fmt, style=table_style), fmt)
 
 
 @server.tool()

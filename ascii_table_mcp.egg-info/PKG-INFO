@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: ascii-table-mcp
+Version: 0.1.0
+Summary: MCP server for Unicode box-drawing and ASCII grid tables with Thai/Pali/CJK width support
+Requires-Python: >=3.10
+License-File: LICENSE
+Requires-Dist: mcp>=1.0.0
+Requires-Dist: wcwidth>=0.2.0
+Dynamic: license-file

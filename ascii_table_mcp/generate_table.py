@@ -41,6 +41,142 @@ except ImportError:
         return len(str(s))
 
 
+# ─── ozh/ascii-tables style system ───────────────────────────────────
+# Based on https://github.com/ozh/ascii-tables — MIT license
+# Each style defines corner/edge characters for the table grid.
+
+TABLE_STYLES = {
+    "mysql": {
+        "TL": "+", "TM": "+", "TR": "+",
+        "ML": "+", "MM": "+", "MR": "+",
+        "BL": "+", "BM": "+", "BR": "+",
+        "hV": "|", "hH": "-",
+        "sV": "|", "sH": "-",
+        "desc": "ASCII mysql style",
+    },
+    "separated": {
+        "TL": "+", "TM": "+", "TR": "+",
+        "ML": "+", "MM": "+", "MR": "+",
+        "BL": "+", "BM": "+", "BR": "+",
+        "hV": "|", "hH": "=",
+        "sV": "|", "sH": "-",
+        "has_line_seps": True,
+        "desc": "ASCII separated (header with =)",
+    },
+    "compact": {
+        "TL": " ", "TM": " ", "TR": " ",
+        "ML": " ", "MM": " ", "MR": " ",
+        "BL": " ", "BM": " ", "BR": " ",
+        "hV": " ", "hH": "-",
+        "sV": " ", "sH": "-",
+        "has_top": False, "has_bottom": False,
+        "desc": "ASCII compact (no borders)",
+    },
+    "rounded": {
+        "TL": ".", "TM": ".", "TR": ".",
+        "ML": ":", "MM": "+", "MR": ":",
+        "BL": "'", "BM": "'", "BR": "'",
+        "hV": "|", "hH": "-",
+        "sV": "|", "sH": "-",
+        "has_line_seps": True,
+        "desc": "ASCII rounded corners",
+    },
+    "gfm": {
+        "TL": "|", "TM": "|", "TR": "|",
+        "ML": "|", "MM": "|", "MR": "|",
+        "BL": "|", "BM": "|", "BR": "|",
+        "hV": "|", "hH": "-",
+        "sV": "|", "sH": "-",
+        "has_top": False, "has_bottom": False,
+        "desc": "GitHub Markdown",
+    },
+    "reddit": {
+        "TL": " ", "TM": "|", "TR": " ",
+        "ML": " ", "MM": "|", "MR": " ",
+        "BL": " ", "BM": "|", "BR": " ",
+        "hV": "|", "hH": "-",
+        "sV": "|", "sH": "-",
+        "has_top": False, "has_bottom": False,
+        "has_left": False, "has_right": False,
+        "desc": "Reddit Markdown",
+    },
+    "rst": {
+        "TL": "+", "TM": "+", "TR": "+",
+        "ML": "+", "MM": "+", "MR": "+",
+        "BL": "+", "BM": "+", "BR": "+",
+        "hV": "|", "hH": "=",
+        "sV": "|", "sH": "-",
+        "desc": "reStructuredText Grid",
+    },
+    "box": {
+        "TL": "\u250c", "TM": "\u252c", "TR": "\u2510",
+        "ML": "\u251c", "MM": "\u253c", "MR": "\u2524",
+        "BL": "\u2514", "BM": "\u2534", "BR": "\u2518",
+        "hV": "\u2502", "hH": "\u2500",
+        "sV": "\u2502", "sH": "\u2500",
+        "desc": "Unicode box-drawing (light)",
+    },
+    "unicode": {
+        "TL": "\u2554", "TM": "\u2566", "TR": "\u2557",
+        "ML": "\u2560", "MM": "\u256c", "MR": "\u2563",
+        "BL": "\u255a", "BM": "\u2569", "BR": "\u255d",
+        "hV": "\u2551", "hH": "\u2550",
+        "sV": "\u2551", "sH": "\u2550",
+        "desc": "Unicode double-line",
+    },
+    "dots": {
+        "TL": ".", "TM": ".", "TR": ".",
+        "ML": ":", "MM": ":", "MR": ":",
+        "BL": ":", "BM": ":", "BR": ":",
+        "hV": ":", "hH": ".",
+        "sV": ":", "sH": ".",
+        "has_line_seps": True,
+        "desc": "ASCII dotted",
+    },
+}
+
+STYLE_NAMES = list(TABLE_STYLES.keys())
+
+
+def detect_numeric_cols(rows, header_count=1):
+    """Return list of booleans: True if column is numeric (excluding headers).
+
+    Based on logic from ozh/ascii-tables: checks if all data cells
+    match a numeric pattern (digits, commas, periods, negative sign).
+    """
+    if not rows:
+        return []
+    col_count = max(len(r) for r in rows)
+    numeric = [True] * col_count
+    for row_idx, row in enumerate(rows):
+        if row_idx < header_count:
+            continue  # skip header rows
+        for col_idx, val in enumerate(row):
+            if col_idx >= len(numeric):
+                break
+            if numeric[col_idx] and val.strip():
+                import re
+                if not re.match(r'^\s*-?[\d,.\s]*\s*$', val.strip()):
+                    numeric[col_idx] = False
+    return numeric
+
+
+def _pad_align(text, length, align="l", pad_char=" "):
+    """Pad text to `length` with given alignment. l=left, r=right, c=center."""
+    text = str(text)
+    diff = length - len(text)
+    if diff <= 0:
+        return text
+    if align == "r":
+        return pad_char * diff + text
+    elif align == "c":
+        left = diff // 2
+        right = diff - left
+        return pad_char * left + text + pad_char * right
+    else:  # left
+        return text + pad_char * diff
+
+
 def get_column_widths(rows, col_count):
     """Compute display width of each column using _display_width()."""
     widths = [0] * col_count
@@ -258,14 +394,30 @@ def analyze_grid_table(text):
     }
 
 
-def render_ascii_grid(rows):
+def render_ascii_grid(rows, style="mysql", auto_format=True):
     """Render list-of-lists as ASCII grid table (+---+ style).
 
-    This format is simpler than Unicode box-drawing (no multi-byte chars),
-    easier to parse/reverse, and works everywhere.
+    Supports multiple styles from ozh/ascii-tables:
+      mysql, separated, compact, gfm, reddit, rounded,
+      rst, box, unicode, dots
+
+    When auto_format=True, numeric columns are right-aligned,
+    header row is centered.
+
+    Args:
+        rows: List of rows (list of strings)
+        style: Style name from TABLE_STYLES
+        auto_format: Auto-detect numeric columns and align
+
+    Returns:
+        Formatted table string.
+
+    Based on https://github.com/ozh/ascii-tables
     """
     if not rows:
         return "(empty table)"
+
+    sty = TABLE_STYLES.get(style, TABLE_STYLES["mysql"])
 
     col_count = max(len(r) for r in rows)
     normalised = [r + [''] * (col_count - len(r)) for r in rows]
@@ -280,21 +432,105 @@ def render_ascii_grid(rows):
             if total > padded_lens[i]:
                 padded_lens[i] = total
 
-    def sep(left, mid, right, inner):
-        cols = [inner * padded_lens[i] for i in range(col_count)]
+    # Detect numeric columns (ozh/ascii-tables logic)
+    if auto_format:
+        header_count = 1
+        numeric_cols = detect_numeric_cols(normalised, header_count)
+    else:
+        numeric_cols = []
+
+    def sep(left, mid, right, inner, padded=None):
+        pl = padded or padded_lens
+        cols = [inner * pl[i] for i in range(col_count)]
         return left + mid.join(cols) + right
 
+    has_top = sty.get("has_top", True)
+    has_bottom = sty.get("has_bottom", True)
+    has_left = sty.get("has_left", True)
+    has_right = sty.get("has_right", True)
+    has_line_seps = sty.get("has_line_seps", False)
+
     lines = []
-    lines.append(sep('+', '+', '+', '-'))
-    cells = [_fmt_cell(c, i, widths, padded_lens) for i, c in enumerate(normalised[0])]
-    lines.append('|' + '|'.join(cells) + '|')
+
+    if has_top:
+        if style == "rst":
+            # rstGrid: top line uses data separators
+            lines.append(sep(sty["TL"], sty["TM"], sty["TR"], sty["sH"]))
+        else:
+            lines.append(sep(sty["TL"], sty["TM"], sty["TR"], sty["hH"]))
+
+    # Header row
+    cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
+                        is_header=True, has_left=has_left)
+             for i, c in enumerate(normalised[0])]
+    l = "" if not has_left else sty["hV"]
+    r = "" if not has_right else sty["hV"]
+    lines.append(l + l.join(cells) + r)
+
     if len(normalised) > 1:
-        lines.append(sep('+', '+', '+', '-'))
+        # Header/data separator
+        lines.append(sep(sty["ML"], sty["MM"], sty["MR"], sty["hH"]))
+
         for row in normalised[1:]:
-            cells = [_fmt_cell(c, i, widths, padded_lens) for i, c in enumerate(row)]
-            lines.append('|' + '|'.join(cells) + '|')
-    lines.append(sep('+', '+', '+', '-'))
+            if has_line_seps:
+                lines.append(sep(sty["ML"], sty["MM"], sty["MR"], sty["sH"]))
+            cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
+                                is_header=False, has_left=has_left)
+                     for i, c in enumerate(row)]
+            l = "" if not has_left else sty["sV"]
+            r = "" if not has_right else sty["sV"]
+            lines.append(l + l.join(cells) + r)
+
+    if has_bottom:
+        lines.append(sep(sty["BL"], sty["BM"], sty["BR"], sty["sH"]))
+
     return '\n'.join(lines)
+
+
+def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
+               is_header=False, has_left=True):
+    """Format a single grid cell with style-aware alignment."""
+    padded = pad_cell(cell, widths[col_idx])
+    extra = padded_lens[col_idx] - len(padded) - 2
+    if extra > 0:
+        padded += ' ' * extra
+
+    # Determine alignment
+    align = "l"
+    if numeric_cols and col_idx < len(numeric_cols):
+        if is_header:
+            align = "c"  # header centered
+        elif numeric_cols[col_idx]:
+            align = "r"  # numbers right-aligned
+
+    # Use _pad_align for alignment (but maintain width offset)
+    cur_len = len(padded)
+    target = widths[col_idx]  # display width target
+
+    # For right-align: push content right
+    if align == "r":
+        content = str(cell)
+        # Re-pad with right alignment
+        diff = widths[col_idx] - _display_width(content)
+        if diff < 0:
+            diff = 0
+        padded = " " * diff + content
+        extra = padded_lens[col_idx] - len(padded) - 2
+        if extra > 0:
+            padded = " " * extra + padded
+    elif align == "c" and is_header:
+        content = str(cell)
+        diff = widths[col_idx] - _display_width(content)
+        if diff < 0:
+            diff = 0
+        left_pad = diff // 2
+        right_pad = diff - left_pad
+        padded = " " * left_pad + content + " " * right_pad
+        extra = padded_lens[col_idx] - len(padded) - 2
+        if extra > 0:
+            padded += " " * extra
+
+    return f" {padded} "
 
 
 def _fmt_cell(cell, col_idx, widths, padded_lens):
