@@ -1,2 +1,0 @@
-[console_scripts]
-ascii-table-mcp = ascii_table_mcp:main

@@ -1,5 +1,4 @@
+*.egg-info/
 __pycache__/
 *.pyc
 .DS_Store
-_test*.py
-_demo*.py
