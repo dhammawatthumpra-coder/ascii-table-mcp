@@ -177,21 +177,21 @@ def _pad_align(text, length, align="l", pad_char=" "):
         return text + pad_char * diff
 
 
-def get_column_widths(rows, col_count):
-    """Compute display width of each column using _display_width()."""
+def get_column_widths(rows, col_count, width_fn=_display_width):
+    """Get the display-width (or char-width) for each column."""
     widths = [0] * col_count
     for row in rows:
         for i, cell in enumerate(row):
-            w = _display_width(cell)
+            w = width_fn(str(cell))
             if w > widths[i]:
                 widths[i] = w
     return widths
 
 
-def pad_cell(s, width):
-    """Pad string to display width using _display_width()."""
+def pad_cell(s, width, width_fn=_display_width):
+    """Pad string to display width using width_fn (wcwidth or len for safe mode)."""
     s = str(s)
-    diff = width - _display_width(s)
+    diff = width - width_fn(s)
     if diff > 0:
         s += ' ' * diff
     return s
@@ -421,27 +421,29 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
 
     col_count = max(len(r) for r in rows)
     normalised = [r + [''] * (col_count - len(r)) for r in rows]
-    widths = get_column_widths(normalised, col_count)
 
-    # padded_lens = char-count after padding (for correct border length)
+    # When safe_width=True, use len() instead of wcwidth for column widths
+    # (Discord/browsers render zero-width marks as width 1)
+    width_fn = len if safe_width else _display_width
+    widths = get_column_widths(normalised, col_count, width_fn=width_fn)
+
     padded_lens = [0] * col_count
-    mark_penalties = [0] * col_count  # extra padding per zero-width mark (for Discord)
     for row in normalised:
         for i, cell in enumerate(row):
-            padded = pad_cell(cell, widths[i])
+            padded = pad_cell(cell, widths[i], width_fn=width_fn)
             total = len(padded) + 2
             if total > padded_lens[i]:
                 padded_lens[i] = total
-            # Count zero-width combining marks for Discord compensation
-            if safe_width:
-                marks = sum(1 for c in cell if _display_width(c) == 0 and not c.isspace())
-                if marks > mark_penalties[i]:
-                    mark_penalties[i] = marks
 
-    # Apply Discord mark penalties to padded_lens
+    # When safe_width=True, add extra padding equal to the gap between
+    # char-count and display-width (Discord renders zero-width marks as width 1).
+    # e.g. "ก๋วยเตี๋ยว" len=10, wcwidth=7 → gap=3 → extra 3 spaces per column.
     if safe_width:
+        dw_widths = get_column_widths(normalised, col_count, width_fn=_display_width)
         for i in range(col_count):
-            padded_lens[i] += mark_penalties[i]
+            gap = widths[i] - dw_widths[i]
+            if gap > 0:
+                padded_lens[i] += gap
 
     # Detect numeric columns (ozh/ascii-tables logic)
     if auto_format:
@@ -472,7 +474,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
 
     # Header row
     cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
-                        is_header=True, has_left=has_left, safe_width=safe_width)
+                        is_header=True, has_left=has_left, safe_width=safe_width, width_fn=width_fn)
              for i, c in enumerate(normalised[0])]
     l = "" if not has_left else sty["hV"]
     r = "" if not has_right else sty["hV"]
@@ -486,7 +488,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
             if has_line_seps:
                 lines.append(sep(sty["ML"], sty["MM"], sty["MR"], sty["sH"]))
             cells = [_grid_cell(c, i, widths, padded_lens, numeric_cols, sty,
-                                is_header=False, has_left=has_left, safe_width=safe_width)
+                                is_header=False, has_left=has_left, safe_width=safe_width, width_fn=width_fn)
                      for i, c in enumerate(row)]
             l = "" if not has_left else sty["sV"]
             r = "" if not has_right else sty["sV"]
@@ -499,7 +501,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
 
 
 def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
-               is_header=False, has_left=True, safe_width=False):
+               is_header=False, has_left=True, safe_width=False, width_fn=_display_width):
     """Format a single grid cell with style-aware alignment.
 
     When safe_width=True, zero-width combining marks are counted as width 1
@@ -516,7 +518,7 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
     # This ensures cells with zero-width marks get enough visual padding
     active_w = max(widths[col_idx], padded_lens[col_idx] - 2) if safe_width else widths[col_idx]
 
-    padded = pad_cell(content, widths[col_idx])
+    padded = pad_cell(content, widths[col_idx], width_fn=width_fn)
     extra = padded_lens[col_idx] - len(padded) - 2
     if extra > 0:
         padded += ' ' * extra
