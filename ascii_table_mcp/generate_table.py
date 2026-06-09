@@ -435,7 +435,7 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
                 padded_lens[i] = total
             # Count zero-width combining marks for Discord compensation
             if safe_width:
-                marks = sum(1 for c in cell if unicodedata.combining(c))
+                marks = sum(1 for c in cell if _display_width(c) == 0 and not c.isspace())
                 if marks > mark_penalties[i]:
                     mark_penalties[i] = marks
 
