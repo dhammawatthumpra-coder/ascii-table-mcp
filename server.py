@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+"""
+ASCII Table MCP Server
+━━━━━━━━━━━━━━━━━━━━━━
+
+3-in-1 table generator for MCP-compatible agents.
+Uses wcwidth for correct Thai/Pali/CJK character width.
+
+Core rendering logic in generate_table.py — this server wraps it as MCP tools.
+
+Tools:
+  - make_table:            Render headers + rows as table
+  - make_table_from_csv:   Parse CSV string and render
+  - make_table_from_json:  Render a JSON array as table
+  - make_table_preview:    Print an example table
+"""
+
+import sys
+import os
+import json
+import csv
+import io
+
+_project_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _project_dir)
+from generate_table import render_table, render_pipe_table, render_ascii_grid, analyze_grid_table
+from mcp.server.fastmcp import FastMCP
+
+server = FastMCP("ASCII Table Generator", log_level="WARNING")
+
+
+def _format_output(rows, fmt):
+    if fmt == "pipe":
+        return render_pipe_table(rows)
+    elif fmt == "grid":
+        return render_ascii_grid(rows)
+    else:
+        return render_table(rows)
+
+
+def _finish(output, fmt):
+    if fmt == "pipe":
+        return output
+    return f"```text\n{output}\n```"
+
+
+@server.tool()
+def make_table(
+    headers: list[str] | None = None,
+    rows: list[list[str]] | None = None,
+    data: list[list[str]] | None = None,
+    format: str = "box",
+) -> str:
+    """Render data as a table.
+
+    Args:
+        headers: Optional list of column header strings
+        rows: List of data rows, each a list of strings
+        data: Alias for rows -- pass data here if you prefer (cannot use both)
+        format: "box" (default) for Unicode box-drawing ---┬---, "pipe" for Markdown pipe table, "grid" for ASCII +---+
+
+    Returns:
+        Formatted table as a Markdown code block (box/grid) or raw pipe table.
+    """
+    r = rows if rows is not None else (data if data is not None else [])
+    if not r:
+        return "(no data provided -- pass rows= or data=)"
+    all_rows = [headers] + r if headers else r
+    return _finish(_format_output(all_rows, format), format)
+
+
+@server.tool()
+def make_table_from_csv(
+    csv_text: str,
+    delimiter: str = ",",
+    has_header: bool = True,
+    format: str = "box",
+) -> str:
+    """Parse a CSV/TSV string and render as a table.
+
+    Args:
+        csv_text: Raw CSV-formatted text
+        delimiter: Field delimiter (default: comma). Use '\\t' for TSV.
+        has_header: If True (default), first row is treated as column headers
+        format: "box" (default), "pipe", or "grid"
+
+    Returns:
+        Formatted table.
+    """
+    if delimiter == "\\t":
+        delimiter = "\t"
+    reader = csv.reader(io.StringIO(csv_text), delimiter=delimiter)
+    parsed = list(reader)
+    if not parsed:
+        return "(empty CSV data)"
+    all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
+    return _finish(_format_output(all_rows, format), format)
+
+
+@server.tool()
+def make_table_from_json(
+    json_data: str,
+    has_header: bool = True,
+    format: str = "box",
+) -> str:
+    """Parse a JSON array and render as a table.
+
+    Accepts either:
+      - A 2D array: [["Name", "Value"], ["alpha", "1"], ...]
+      - An object with "headers" and "rows" keys: {"headers":["Name"], "rows":[["alpha"]]}
+
+    Args:
+        json_data: JSON string
+        has_header: If True (default), first row is treated as column headers
+        format: "box" (default), "pipe", or "grid"
+
+    Returns:
+        Formatted table.
+    """
+    try:
+        parsed = json.loads(json_data)
+    except json.JSONDecodeError as e:
+        return f"Error: Invalid JSON -- {e}"
+    if isinstance(parsed, dict):
+        h = parsed.get("headers", [])
+        r = parsed.get("rows", [])
+        all_rows = [h] + r if h else r
+    elif isinstance(parsed, list) and len(parsed) > 0 and isinstance(parsed[0], list):
+        all_rows = [parsed[0]] + parsed[1:] if has_header else parsed
+    else:
+        return "Error: Expected a 2D array or {headers, rows} object"
+    return _finish(_format_output(all_rows, format), format)
+
+
+@server.tool()
+def make_table_preview(style: str = "thai", format: str = "box") -> str:
+    """Print a preview/example table with sample data.
+
+    Args:
+        style: "thai" (default) -- example with Thai/Pali characters
+               "simple" -- plain English example
+        format: "box" (default), "pipe", or "grid"
+
+    Returns:
+        Formatted example table.
+    """
+    if style == "thai":
+        rows = [
+            ["List", "Name", "Description"],
+            ["1", "king of the Dhamma", "dhammaraaja"],
+        ]
+    else:
+        rows = [
+            ["Name", "Role", "Status"],
+            ["Alice", "Admin", "Active"],
+        ]
+    return _finish(_format_output(rows, format), format)
+
+
+@server.tool()
+def analyze_table(table_text: str) -> str:
+    """Analyze column positions in a grid table (+---+).
+
+    Uses display-width space (via wcwidth) for position comparison,
+    so Thai/Pali combining marks (พินทุ, สระบน/ล่าง) are handled correctly.
+
+    Scans '+' markers in border lines to define column boundaries,
+    then validates '|' alignment in data rows.
+
+    Args:
+        table_text: A +---+ grid table as raw text
+
+    Returns:
+        Analysis report: column positions, alignment validation, parsed cells
+    """
+    result = analyze_grid_table(table_text)
+    lines = []
+    lines.append("--- Table Analysis ---")
+    lines.append(f"Columns: {result['column_count']}")
+    lines.append(f"Column boundaries (display-width): {result['columns']}")
+    lines.append(f"'+' at display positions: {result['plus_display_positions']}")
+    lines.append(f"Valid alignment: {'✅' if result['valid'] else '❌'}")
+
+    if result['errors']:
+        lines.append(f"\nAlignment errors ({len(result['errors'])}):")
+        for e in result['errors']:
+            lines.append(f"  • {e}")
+
+    lines.append(f"\nParsed cells ({len(result['cells'])} rows):")
+    import json
+    for i, row in enumerate(result['cells']):
+        lines.append(f"  [{i}] {json.dumps(row, ensure_ascii=False)}")
+
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    if "--http" in sys.argv:
+        import uvicorn
+        uvicorn.run(server.sse_app(), host="127.0.0.1", port=8000)
+    else:
+        server.run(transport="stdio")
