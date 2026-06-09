@@ -1,7 +1,7 @@
 [project]
 name = "ascii-table-mcp"
 version = "0.1.0"
-description = "MCP server for Unicode box-drawing, pipe, and ASCII grid tables with Thai/Pali width support"
+description = "MCP server for Unicode box-drawing and ASCII grid tables with Thai/Pali/CJK width support"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",
@@ -9,7 +9,11 @@ dependencies = [
 ]
 
 [project.scripts]
-ascii-table-mcp = "server:main"
+ascii-table-mcp = "ascii_table_mcp:main"
 
 [tool.uv]
 dev-dependencies = []
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"

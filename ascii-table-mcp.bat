@@ -1,2 +1,2 @@
 @echo off
-python "F:\_Ai\ascii-table-mcp\server.py"
+python "%~dp0\server.py"

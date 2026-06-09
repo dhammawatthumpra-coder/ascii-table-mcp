@@ -29,21 +29,19 @@ MCP server สำหรับสร้างตาราง (ASCII grid / Unicod
 
 ## Quick Start
 
+### uvx (no install)
+
 ```bash
-pip install mcp wcwidth
-python server.py
+uvx --from git+https://github.com/dhammawatthumpra-coder/ascii-table-mcp ascii-table-mcp
 ```
 
-### Register with Hermes
+### pip install
 
 ```bash
-# clone ไว้ที่ไหนก็ใช้ path นั้น
 git clone https://github.com/dhammawatthumpra-coder/ascii-table-mcp.git
 cd ascii-table-mcp
 pip install -e .
-
-# หรือ add โดยตรง
-hermes mcp add ascii-table --command "python /path/to/ascii-table-mcp/server.py"
+python -m ascii_table_mcp
 ```
 
 ### Register with Claude Desktop
@@ -53,10 +51,17 @@ hermes mcp add ascii-table --command "python /path/to/ascii-table-mcp/server.py"
   "mcpServers": {
     "ascii-table": {
       "command": "python",
-      "args": ["F:\\_Ai\\ascii-table-mcp\\server.py"]
+      "args": ["-m", "ascii_table_mcp"]
     }
   }
 }
+```
+
+### Register with Hermes
+
+```bash
+# หลังจาก pip install -e . แล้ว
+hermes mcp add ascii-table --command "python -m ascii_table_mcp"
 ```
 
 ---
@@ -176,20 +181,20 @@ wcswidth("กมฺม") → 3  ✅ (พินทุ width 0)
 
 ---
 
-## CLI Usage (generate_table.py)
+## CLI Usage
 
 ```bash
 # CSV args → grid
-python3 generate_table.py --grid 'ชื่อ,อายุ' 'สมชาย,30' 'สมหญิง,25'
+python -m ascii_table_mcp.generate_table --grid 'ชื่อ,อายุ' 'สมชาย,30' 'สมหญิง,25'
 
 # TSV pipe → grid
-printf 'ชื่อ\tอายุ\nสมชาย\t30\n' | python3 generate_table.py --tsv --grid
+printf 'ชื่อ\tอายุ\nสมชาย\t30\n' | python -m ascii_table_mcp.generate_table --tsv --grid
 
 # JSON
-python3 generate_table.py --json '{"headers":["A","B"],"rows":[["1","2"]]}' --grid
+python -m ascii_table_mcp.generate_table --json '{"headers":["A","B"],"rows":[["1","2"]]}' --grid
 
 # ASCII/Pipe Table → auto-convert
-cat table.txt | python3 generate_table.py --ascii
+cat table.txt | python -m ascii_table_mcp.generate_table --ascii
 ```
 
 ```text
@@ -207,13 +212,15 @@ cat table.txt | python3 generate_table.py --ascii
 
 ```text
 ascii-table-mcp/
-├── server.py           # MCP server (FastMCP)
-├── generate_table.py   # Core rendering engine
-├── requirements.txt    # mcp + wcwidth
-├── pyproject.toml      # uv / pip install
-├── ascii-table-mcp.bat # Windows wrapper
-├── LICENSE             # MIT
-└── README.md           # เอกสารนี้
+├── ascii_table_mcp/
+│   ├── __init__.py      # MCP server (FastMCP)
+│   └── generate_table.py # Core rendering engine
+├── server.py            # Thin wrapper for `python server.py`
+├── requirements.txt     # mcp + wcwidth
+├── pyproject.toml        # uv / pip install
+├── ascii-table-mcp.bat  # Windows wrapper
+├── LICENSE              # MIT
+└── README.md            # เอกสารนี้
 ```
 
 Core rendering (`render_table`, `render_ascii_grid`, `render_pipe_table`, `render_table_safe`) อยู่ใน `generate_table.py` — server.py import มาใช้ ไม่มี code ซ้ำ
