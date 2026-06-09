@@ -80,6 +80,85 @@ def parse_ascii_table(text):
     return rows
 
 
+def detect_format(text):
+    """Auto-detect table format from text."""
+    lines = text.strip().split('\n')
+    if not lines:
+        return 'unknown'
+    first = lines[0].strip()
+    if first.startswith('┌') and first.endswith('┐'):
+        return 'box'
+    if first.startswith('+') and first.endswith('+'):
+        return 'grid'
+    if '|' in first and '|' in lines[-1]:
+        return 'pipe'
+    return 'unknown'
+
+
+def validate_table(text):
+    """Validate structural integrity of a grid/box/pipe table.
+
+    Checks:
+      - Border/data line alternation
+      - Marker positions (+, |) are consistent
+      - Column count stable
+      - First/last lines are correct border type
+
+    Returns dict: valid, format, line_errors (list of (line_no, msg))
+    """
+    lines = text.split('\n')
+    fmt = detect_format(text)
+    errors = []
+    border_markers = []
+
+    if fmt == 'box':
+        # Border chars in box-drawing: ┌┬┐ ├┼┤ └┴┘ are all structural markers
+        all_box = '┬┼┴┌┐├┤└┘'
+        sep_chars = '┬┼┴'
+    elif fmt == 'grid':
+        all_box = '+'
+        sep_chars = '+'
+    elif fmt == 'pipe':
+        all_box = '-'
+        sep_chars = '-'
+    else:
+        return {"valid": False, "format": fmt, "line_errors": [(0, "unknown table format")]}
+
+    border_markers = []
+
+    for i, line in enumerate(lines):
+        if not line.strip():
+            errors.append((i + 1, 'empty line'))
+            continue
+
+        first = line.strip()[0]
+        if first in ('┌', '├', '└', '+', '-'):
+            # Border line
+            markers = [j for j, ch in enumerate(line) if ch in sep_chars]
+            if not border_markers:
+                border_markers = markers
+            elif markers != border_markers:
+                marker_diff = set(markers) ^ set(border_markers)
+                errors.append((i + 1, f'border markers differ: +/-{sorted(marker_diff)}'))
+        elif first == '│' or first == '|':
+            # Data line
+            pipe_count = len([j for j, ch in enumerate(line) if ch in '│|'])
+            expected_pipes = len(border_markers)  # grid/pipe
+            if fmt == 'box':
+                expected_pipes = len(border_markers) + 2  # ┌┬┐ → │ │ │ │
+            if expected_pipes > 0 and pipe_count != expected_pipes:
+                errors.append((i + 1, f'data has {pipe_count} pipes, expected {expected_pipes}'))
+        else:
+            errors.append((i + 1, f'unexpected start char: {repr(first)}'))
+
+    return {
+        "valid": len(errors) == 0,
+        "format": fmt,
+        "columns": len(border_markers) + 1 if fmt == 'box' else max(0, len(border_markers) - 1),
+        "line_errors": errors,
+    }
+
+
 def analyze_grid_table(text):
     """Analyze column positions in a +---+ grid table.
 
@@ -237,37 +316,187 @@ def render_pipe_table(rows, top_frame=True):
     return '\n'.join(lines)
 
 
-def render_table(rows):
-    """Render list-of-lists as Unicode box-drawing table."""
+def render_table_debug(rows):
+    """Render box-drawing table with character-position annotations.
+
+    Shows every border marker (+) and data pipe (|) with its character index
+    and display-width position. Use this to diagnose alignment drift caused
+    by platform rendering of zero-width combining marks.
+    """
+    table = render_table(rows)
+    lines_out = []
+    lines_out.append("═" * 60)
+    lines_out.append("TABLE (plain):")
+    lines_out.append("═" * 60)
+    lines_out.append(table)
+    lines_out.append("")
+    lines_out.append("═" * 60)
+    lines_out.append("POSITION ANALYSIS (char@pos | dw=display-width):")
+    lines_out.append("═" * 60)
+    for line in table.split("\n"):
+        annotations = []
+        for i, ch in enumerate(line):
+            if ch in "┬┼┴┌┐├┤└┘││+|-":
+                dw = _display_width(line[:i])
+                annotations.append(f"  {ch}@char{i}(dw{dw})")
+        if annotations:
+            lines_out.append("".join(annotations) + f"  ← {line}")
+        else:
+            lines_out.append(f"  (no markers)  ← {line}")
+    lines_out.append("")
+    lines_out.append("═" * 60)
+    lines_out.append("INTERPRETATION:")
+    lines_out.append("═" * 60)
+    
+    # Build marker lists from the rendered table
+    border_markers = []
+    data_markers = []
+    for line in table.split("\n"):
+        bm = [(i, ch) for i, ch in enumerate(line) if ch in "┬┼┴"]
+        if bm:
+            border_markers.append(bm)
+        dp = [(i, ch) for i, ch in enumerate(line) if ch in "│"]
+        if dp:
+            data_markers.append(dp)
+    
+    # Compare border internal markers vs data pipes (skip edge pipes)
+    if border_markers and data_markers and len(border_markers[0]) > 0:
+        ref = border_markers[0]  # first border's internal markers
+        lines_out.append(f"Reference border internal markers: {ref}")
+        for ridx, row in enumerate(data_markers):
+            # Skip first and last pipe (edges), compare internal ones
+            internal = row[1:-1]
+            diffs = []
+            for i, (pos, ch) in enumerate(internal):
+                if i < len(ref):
+                    expected_pos = ref[i][0]
+                    if pos != expected_pos:
+                        diffs.append(f"  col{i}: border @{expected_pos} vs pipe @{pos} (drift {pos - expected_pos})")
+                    else:
+                        diffs.append(f"  col{i}: aligned @{pos} ✓")
+            if diffs:
+                lines_out.append(f"  Data row {ridx + 1}:")
+                for d in diffs:
+                    lines_out.append(f"    {d}")
+    
+    max_drift = 0
+    if border_markers and data_markers:
+        ref = border_markers[0]
+        for row in data_markers:
+            internal = row[1:-1]  # skip edge pipes
+            for i, (pos, ch) in enumerate(internal):
+                if i < len(ref):
+                    drift = abs(pos - ref[i][0])
+                    if drift > max_drift:
+                        max_drift = drift
+    
+    if max_drift == 0:
+        lines_out.append("")
+        lines_out.append("✅ Zero structural drift — all markers align in char space.")
+        lines_out.append("   If visual alignment looks off, the issue is platform rendering")
+        lines_out.append("   (Discord font, terminal emulator, browser code-block renderer).")
+        lines_out.append("")
+        lines_out.append("   Try render_table with safe=True for char-count padding.")
+    else:
+        lines_out.append("")
+        lines_out.append(f"❌ Drift detected: max {max_drift} chars between border and data.")
+    
+    return "\n".join(lines_out)
+
+
+def render_table_safe(rows):
+    """Render box-drawing table using character-count padding.
+
+    Unlike render_table() which uses display-width (wcwidth) for padding,
+    this version pads to len() — guaranteeing structural marker alignment
+    even on platforms that render combining marks with non-zero width.
+    
+    Safe mode trades slightly wider columns for guaranteed alignment.
+    """
     if not rows:
         return "(empty table)"
-    
+
     col_count = max(len(r) for r in rows)
     normalised = [r + [''] * (col_count - len(r)) for r in rows]
-    widths = get_column_widths(normalised, col_count)
+
+    # Compute max character length for each column (safe padding)
+    col_max = [0] * col_count
+    for row in normalised:
+        for i, cell in enumerate(row):
+            if len(cell) > col_max[i]:
+                col_max[i] = len(cell)
 
     def sep(left, mid, right, inner):
-        cols = []
-        for w in widths:
-            cols.append(inner * (w + 2))
+        cols = [inner * (col_max[i] + 2) for i in range(col_count)]
         return left + mid.join(cols) + right
 
+    def fmt_cell(cell, i):
+        padded = cell + ' ' * (col_max[i] - len(cell))
+        return f" {padded} "
+
     lines = []
-    # 1. เส้นขอบบนสุด
     lines.append(sep('┌', '┬', '┐', '─'))
-    
-    # 2. แถวข้อมูลหัวข้อ (Header)
-    cells = [f" {pad_cell(c, widths[i])} " for i, c in enumerate(normalised[0])]
+    cells = [fmt_cell(c, i) for i, c in enumerate(normalised[0])]
     lines.append('│' + '│'.join(cells) + '│')
-    
-    # 3. ข้อมูลเนื้อหา (Rows)
     if len(normalised) > 1:
         lines.append(sep('├', '┼', '┤', '─'))
         for row in normalised[1:]:
-            cells = [f" {pad_cell(c, widths[i])} " for i, c in enumerate(row)]
+            cells = [fmt_cell(c, i) for i, c in enumerate(row)]
             lines.append('│' + '│'.join(cells) + '│')
-            
-    # 4. เส้นขอบล่างสุด
+    lines.append(sep('└', '┴', '┘', '─'))
+    return '\n'.join(lines)
+
+
+def render_table(rows):
+    """Render box-drawing table using wcwidth display-width padding.
+    Border uses exact padded character length to keep structural
+    markers (┬┼┴) aligned with data pipes (│).
+    
+    For guaranteed alignment on imperfect Unicode renderers, use
+    render_table_safe() instead (char-count padding).
+    """
+    if not rows:
+        return "(empty table)"
+
+    col_count = max(len(r) for r in rows)
+    normalised = [r + [''] * (col_count - len(r)) for r in rows]
+
+    disp_widths = [0] * col_count
+    for row in normalised:
+        for i, cell in enumerate(row):
+            dw = _display_width(cell)
+            if dw > disp_widths[i]:
+                disp_widths[i] = dw
+
+    padded_lens = [0] * col_count
+    for row in normalised:
+        for i, cell in enumerate(row):
+            padded = pad_cell(cell, disp_widths[i])
+            total = len(padded) + 2
+            if total > padded_lens[i]:
+                padded_lens[i] = total
+
+    def sep(left, mid, right, inner):
+        cols = [inner * padded_lens[i] for i in range(col_count)]
+        return left + mid.join(cols) + right
+
+    lines = []
+    lines.append(sep('┌', '┬', '┐', '─'))
+
+    def fmt_cell(cell, i):
+        padded = pad_cell(cell, disp_widths[i])
+        extra = padded_lens[i] - len(padded) - 2
+        if extra > 0:
+            padded += ' ' * extra
+        return f" {padded} "
+
+    cells = [fmt_cell(c, i) for i, c in enumerate(normalised[0])]
+    lines.append('│' + '│'.join(cells) + '│')
+    if len(normalised) > 1:
+        lines.append(sep('├', '┼', '┤', '─'))
+        for row in normalised[1:]:
+            cells = [fmt_cell(c, i) for i, c in enumerate(row)]
+            lines.append('│' + '│'.join(cells) + '│')
     lines.append(sep('└', '┴', '┘', '─'))
     return '\n'.join(lines)
 

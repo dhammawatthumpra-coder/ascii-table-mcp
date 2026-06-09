@@ -23,7 +23,7 @@ import io
 
 _project_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _project_dir)
-from generate_table import render_table, render_pipe_table, render_ascii_grid, analyze_grid_table
+from generate_table import render_table, render_table_safe, render_table_debug, render_pipe_table, render_ascii_grid, analyze_grid_table, validate_table, detect_format
 from mcp.server.fastmcp import FastMCP
 
 server = FastMCP("ASCII Table Generator", log_level="WARNING")
@@ -34,6 +34,8 @@ def _format_output(rows, fmt):
         return render_pipe_table(rows)
     elif fmt == "grid":
         return render_ascii_grid(rows)
+    elif fmt == "safe":
+        return render_table_safe(rows)
     else:
         return render_table(rows)
 
@@ -192,6 +194,64 @@ def analyze_table(table_text: str) -> str:
         lines.append(f"  [{i}] {json.dumps(row, ensure_ascii=False)}")
 
     return "\n".join(lines)
+
+
+@server.tool()
+def validate_table_text(table_text: str) -> str:
+    """Validate structural integrity of a table (box/grid/pipe).
+
+    Auto-detects format, then checks:
+      - Border/data line alternation
+      - Marker positions (+, ┬, etc.) are consistent
+      - Column count is stable across rows
+      - First and last lines are correct border type
+
+    Args:
+        table_text: Raw table text (box, grid, or pipe format)
+
+    Returns:
+        Validation report with any structural issues
+    """
+    result = validate_table(table_text)
+    fmt_display = {"box": "Unicode box-drawing", "grid": "ASCII grid", "pipe": "Markdown pipe"}
+    lines = []
+    lines.append("--- Table Validation ---")
+    lines.append(f"Format: {fmt_display.get(result['format'], result['format'])}")
+    lines.append(f"Columns: {result['columns']}")
+    lines.append(f"Status: {'✅ Valid' if result['valid'] else '❌ Invalid'}")
+
+    if result['line_errors']:
+        lines.append(f"\nErrors ({len(result['line_errors'])}):")
+        for line_no, msg in result['line_errors']:
+            lines.append(f"  Line {line_no}: {msg}")
+
+    return "\n".join(lines)
+
+
+@server.tool()
+def debug_table(
+    headers: list[str] | None = None,
+    rows: list[list[str]] | None = None,
+    data: list[list[str]] | None = None,
+) -> str:
+    """Render and diagnose a table — shows exact character positions.
+
+    Produces a detailed report: plain table, annotated position analysis,
+    and drift comparison between border markers and data pipes.
+
+    Args:
+        headers: Optional column headers
+        rows: Data rows
+        data: Alias for rows
+
+    Returns:
+        Diagnostic report with position annotations
+    """
+    r = rows if rows is not None else (data if data is not None else [])
+    if not r:
+        return "(no data provided)"
+    all_rows = [headers] + r if headers else r
+    return render_table_debug(all_rows)
 
 
 def main():
