@@ -30,7 +30,6 @@ import sys
 import csv
 import json
 import re
-import unicodedata
 # ─── Display width: wcwidth directly (Thai/Pali combining marks handled correctly) ───
 try:
     from wcwidth import wcswidth
