@@ -271,21 +271,39 @@ def render_ascii_grid(rows):
     normalised = [r + [''] * (col_count - len(r)) for r in rows]
     widths = get_column_widths(normalised, col_count)
 
+    # padded_lens = char-count after padding (for correct border length)
+    padded_lens = [0] * col_count
+    for row in normalised:
+        for i, cell in enumerate(row):
+            padded = pad_cell(cell, widths[i])
+            total = len(padded) + 2
+            if total > padded_lens[i]:
+                padded_lens[i] = total
+
     def sep(left, mid, right, inner):
-        cols = [inner * (w + 2) for w in widths]
+        cols = [inner * padded_lens[i] for i in range(col_count)]
         return left + mid.join(cols) + right
 
     lines = []
     lines.append(sep('+', '+', '+', '-'))
-    cells = [f" {pad_cell(c, widths[i])} " for i, c in enumerate(normalised[0])]
+    cells = [_fmt_cell(c, i, widths, padded_lens) for i, c in enumerate(normalised[0])]
     lines.append('|' + '|'.join(cells) + '|')
     if len(normalised) > 1:
         lines.append(sep('+', '+', '+', '-'))
         for row in normalised[1:]:
-            cells = [f" {pad_cell(c, widths[i])} " for i, c in enumerate(row)]
+            cells = [_fmt_cell(c, i, widths, padded_lens) for i, c in enumerate(row)]
             lines.append('|' + '|'.join(cells) + '|')
     lines.append(sep('+', '+', '+', '-'))
     return '\n'.join(lines)
+
+
+def _fmt_cell(cell, col_idx, widths, padded_lens):
+    """Format a cell with wcwidth-aware padding and extra alignment fill."""
+    padded = pad_cell(cell, widths[col_idx])
+    extra = padded_lens[col_idx] - len(padded) - 2
+    if extra > 0:
+        padded += ' ' * extra
+    return f" {padded} "
 
 
 def render_pipe_table(rows, top_frame=True):
