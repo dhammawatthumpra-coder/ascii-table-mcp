@@ -68,23 +68,34 @@ textarea:focus { border-color: #89b4fa; }
   font-weight: 600;
 }
 
-/* Buttons */
-.btn-group { display: flex; gap: 8px; margin-top: 12px; }
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  flex: 1;
+/* Buttons & toolbar */
+.toolbar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
 }
-.btn-primary { background: #89b4fa; color: #11111b; }
-.btn-primary:hover { background: #74c7ec; }
-.btn-secondary { background: #45475a; color: #cdd6f4; }
-.btn-secondary:hover { background: #585b70; }
+.toolbar .label-sm { color: #a6adc8; font-size: 12px; margin-right: 4px; }
+.tool-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid #45475a;
+  background: #313244;
+  color: #cdd6f4;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.tool-btn:hover { background: #45475a; }
+.tool-btn.active { background: #89b4fa; color: #11111b; border-color: #89b4fa; font-weight: 600; }
+.tool-btn.primary { background: #89b4fa; color: #11111b; border-color: #89b4fa; font-weight: 600; }
+.tool-btn.primary:hover { background: #74c7ec; }
+.tool-sep { width: 1px; height: 20px; background: #45475a; margin: 0 4px; display: inline-block; }
 
+/* Preview panel */
 /* Preview panel */
 .preview-panel {
   background: #1e1e2e;
@@ -95,16 +106,16 @@ textarea:focus { border-color: #89b4fa; }
   display: flex;
   flex-direction: column;
 }
-.preview-panel h2 { font-size: 16px; margin-bottom: 12px; color: #a6adc8; }
 .preview-wrap {
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
-  overflow: auto;
+  align-items: flex-start;
+  overflow: hidden;
   border-radius: 8px;
   background: #181825;
-  min-height: 300px;
+  min-height: 200px;
+  position: relative;
 }
 
 /* The actual table — rendered here */
@@ -112,6 +123,7 @@ textarea:focus { border-color: #89b4fa; }
   display: inline-block;
   padding: 20px;
   font-size: 20px;
+  transform-origin: top center;
 }
 
 /* Dark theme */
@@ -193,46 +205,36 @@ textarea:focus { border-color: #89b4fa; }
 <div class="container">
 
   <!-- Input panel -->
-  <div class="panel">
-    <h2>📝 Data</h2>
-    <textarea id="csv-input" placeholder="Paste CSV or Markdown pipe table (first row = headers)
+  <div class="panel" style="padding: 12px 16px;">
+    <textarea id="csv-input" style="height:130px;font-size:12px;" placeholder="CSV or Markdown table (first row = headers)
 
-CSV:
-คำบาลี,Roman,หมวด,ความหมาย
-กมฺม,kamma,นาม,กรรม
+CSV: คำบาลี,Roman,หมวด,ความหมาย / กมฺม,kamma,นาม,กรรม
 
 Markdown:
 | คำบาลี | Roman | หมวด | ความหมาย |
 |--------|-------|------|----------|
 | กมฺม  | kamma | นาม  | กรรม     |"></textarea>
 
-    <div class="label">🎨 Style</div>
-    <div class="style-group" id="style-group">
-      <button class="style-btn active" data-style="dark">Dark</button>
-      <button class="style-btn" data-style="light">Light</button>
-      <button class="style-btn" data-style="minimal">Minimal</button>
-      <button class="style-btn" data-style="compact">Compact</button>
-    </div>
-
-    <div class="label">📐 Font size</div>
-    <div class="style-group" id="size-group">
-      <button class="style-btn" data-size="16">16px</button>
-      <button class="style-btn active" data-size="20">20px</button>
-      <button class="style-btn" data-size="24">24px</button>
-      <button class="style-btn" data-size="28">28px</button>
-    </div>
-
-    <div class="btn-group">
-      <button class="btn btn-primary" onclick="downloadPNG()">⬇ Download PNG</button>
-      <button class="btn btn-secondary" onclick="copyHTML()">📋 Copy HTML</button>
-    </div>
-
-    <div class="label">⬇ Export as</div>
-    <div class="style-group" id="export-group">
-      <button class="style-btn" onclick="exportSVG()">SVG</button>
-      <button class="style-btn" onclick="exportGrid()">Grid +--+</button>
-      <button class="style-btn" onclick="exportBox()">Box ┌─┬┐</button>
-      <button class="style-btn" onclick="exportPipe()">Pipe | |</button>
+    <div class="toolbar">
+      <span class="label-sm">Style</span>
+      <button class="tool-btn active" data-style="dark">Dark</button>
+      <button class="tool-btn" data-style="light">Light</button>
+      <button class="tool-btn" data-style="minimal">Min</button>
+      <button class="tool-btn" data-style="compact">Compact</button>
+      <span class="tool-sep"></span>
+      <span class="label-sm">Size</span>
+      <button class="tool-btn" data-size="16">16</button>
+      <button class="tool-btn active" data-size="20">20</button>
+      <button class="tool-btn" data-size="24">24</button>
+      <button class="tool-btn" data-size="28">28</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn primary" onclick="downloadPNG()">⬇ PNG</button>
+      <button class="tool-btn" onclick="copyHTML()">📋 HTML</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" onclick="exportSVG()">SVG</button>
+      <button class="tool-btn" onclick="exportGrid()">+--+</button>
+      <button class="tool-btn" onclick="exportBox()">┌─┬┐</button>
+      <button class="tool-btn" onclick="exportPipe()">\u007C \u007C</button>
     </div>
   </div>
 
@@ -297,6 +299,7 @@ function render() {
   const data = parseData(raw);
   if (data.length === 0) {
     TABLE_WRAP.innerHTML = '<div style="color:#6c7086;padding:40px;text-align:center;">✨ Paste data to see preview</div>';
+    TABLE_WRAP.style.transform = '';
     return;
   }
 
@@ -311,6 +314,30 @@ function render() {
   html += '</table>';
 
   TABLE_WRAP.innerHTML = html;
+
+  // Auto-scale to fit preview width
+  fitTable();
+}
+
+function fitTable() {
+  const wrap = PREVIEW_WRAP;
+  const table = TABLE_WRAP.querySelector('table');
+  if (!table) return;
+
+  // Reset transform first so we measure natural size
+  TABLE_WRAP.style.transform = '';
+  const wrapW = wrap.clientWidth - 40; // minus padding
+  const tableW = table.scrollWidth + 40; // plus padding
+
+  if (tableW > wrapW) {
+    const scale = wrapW / tableW;
+    TABLE_WRAP.style.transform = `scale(${scale})`;
+    // Adjust height so container doesn't collapse
+    TABLE_WRAP.style.height = (table.scrollHeight + 40) * scale + 'px';
+  } else {
+    TABLE_WRAP.style.transform = '';
+    TABLE_WRAP.style.height = '';
+  }
 }
 
 function esc(s) {
@@ -322,33 +349,38 @@ function applyStyle(style) {
   currentStyle = style;
   TABLE_WRAP.className = style + '-theme';
   // Update active button
-  document.querySelectorAll('#style-group .style-btn').forEach(b => {
+  document.querySelectorAll('.tool-btn[data-style]').forEach(b => {
     b.classList.toggle('active', b.dataset.style === style);
   });
   // Update preview bg
   const bg = style === 'light' ? '#f5f5f5' : '#181825';
   PREVIEW_WRAP.style.background = bg;
   render();
+  setTimeout(fitTable, 50);
 }
 
 function applySize(size) {
   currentSize = parseInt(size);
   TABLE_WRAP.style.fontSize = size + 'px';
-  document.querySelectorAll('#size-group .style-btn').forEach(b => {
+  document.querySelectorAll('.tool-btn[data-size]').forEach(b => {
     b.classList.toggle('active', b.dataset.size === size);
   });
+  setTimeout(fitTable, 50);
 }
 
-// Style button clicks
-document.querySelectorAll('#style-group .style-btn').forEach(btn => {
+// Tool button clicks
+document.querySelectorAll('.tool-btn[data-style]').forEach(btn => {
   btn.addEventListener('click', () => applyStyle(btn.dataset.style));
 });
-document.querySelectorAll('#size-group .style-btn').forEach(btn => {
+document.querySelectorAll('.tool-btn[data-size]').forEach(btn => {
   btn.addEventListener('click', () => applySize(btn.dataset.size));
 });
 
 // Auto-render on input
 TEXTAREA.addEventListener('input', render);
+
+// Re-fit on window resize
+window.addEventListener('resize', fitTable);
 
 // Download PNG
 async function downloadPNG() {
