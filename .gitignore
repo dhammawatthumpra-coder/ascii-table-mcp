@@ -16,3 +16,7 @@ NotoSansThai_VF.ttf
 
 # Local scripts
 gen_ratios.py
+
+# temp HTML renders
+_table_render_*.html
+NotoSansThai_VF.ttf
