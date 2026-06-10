@@ -995,54 +995,60 @@ td {{ background: {theme['td_bg']}; }}
     return {"path": os.path.abspath(out_path), "html": html}
 
 
-# ─── PNG Export (Playwright) ─────────────────────────────────────────
+# ─── PNG Export (Playwright async) ──────────────────────────────────
 
-def render_table_png(rows, style="dark", font_size=24):
-    """Render table as cropped PNG using Playwright headless browser.
-
-    Generates HTML first, then uses headless Chromium to screenshot
-    just the table element — auto-cropped, no background padding.
-
-    Args:
-        rows: list of lists (first row = headers)
-        style: "dark" (default), "light", "minimal", "compact"
-        font_size: font size in px (default: 24)
-
-    Returns:
-        dict with 'path' (absolute PNG path)
-    """
-    import os, shutil, asyncio
+async def render_table_png_async(rows, style="dark", font_size=24):
+    """Async version: render table as cropped PNG using Playwright."""
+    import os, shutil
     from playwright.async_api import async_playwright
 
     base_dir = os.path.join(os.path.dirname(__file__), os.pardir)
     font_path = os.path.join(base_dir, "NotoSansThai_VF.ttf")
     html_result = render_html_table(rows, style=style)
     html_path = html_result["path"]
-
-    # คัดลอก font ไปที่เดียวกับ HTML ถ้ายังไม่มี
     font_dir = os.path.dirname(html_path)
     local_font = os.path.join(font_dir, "NotoSansThai_VF.ttf")
     if os.path.exists(font_path) and not os.path.exists(local_font):
         shutil.copy2(font_path, local_font)
+    png_path = os.path.abspath(os.path.join(base_dir, f"_table_export_{style}.png"))
 
-    png_path = os.path.join(base_dir, f"_table_export_{style}.png")
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.goto(f"file:///{html_path.replace(os.sep, '/')}")
+        await page.wait_for_load_state("networkidle")
+        await page.wait_for_timeout(500)
+        table = await page.query_selector("table")
+        if table:
+            await table.screenshot(path=png_path)
+        else:
+            await page.screenshot(path=png_path, full_page=True)
+        await browser.close()
+    return {"path": png_path}
 
-    async def _screenshot():
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            page = await browser.new_page(viewport={"width": 1920, "height": 1080})
-            await page.goto(f"file:///{html_path.replace(os.sep, '/')}")
-            await page.wait_for_load_state("networkidle")
-            await page.wait_for_timeout(500)
-            table = await page.query_selector("table")
-            if table:
-                await table.screenshot(path=png_path)
-            else:
-                await page.screenshot(path=png_path, full_page=True)
-            await browser.close()
 
-    asyncio.run(_screenshot())
-    return {"path": os.path.abspath(png_path)}
+def render_table_png(rows, style="dark", font_size=24):
+    """Render table as cropped PNG using Playwright.
+
+    Sync wrapper for async API — safe to call from asyncio context.
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        # We're inside an event loop (MCP context) — use a new loop
+        import threading
+        result = [None]
+        def _run():
+            r = asyncio.run(render_table_png_async(rows, style=style, font_size=font_size))
+            result[0] = r
+        t = threading.Thread(target=_run)
+        t.start()
+        t.join()
+        return result[0]
+    return asyncio.run(render_table_png_async(rows, style=style, font_size=font_size))
 
 
 # ─── SVG Export ──────────────────────────────────────────────────────

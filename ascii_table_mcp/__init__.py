@@ -26,7 +26,7 @@ from ascii_table_mcp.generate_table import (
     render_ascii_grid,
     render_minimal_table,
     render_html_table,
-    render_table_png,
+    render_table_png_async,
     render_table_svg,
     analyze_grid_table,
     validate_table,
@@ -298,7 +298,7 @@ def debug_table(
 
 
 @server.tool()
-def export_png(
+async def export_png(
     headers: list[str] | None = None,
     rows: list[list[str]] | None = None,
     data: list[list[str]] | None = None,
@@ -324,7 +324,7 @@ def export_png(
     if not r:
         return "(no data provided)"
     all_rows = [headers] + r if headers else r
-    result = render_table_png(all_rows, style=style, font_size=font_size)
+    result = await render_table_png_async(all_rows, style=style, font_size=font_size)
     path = result["path"]
     url_path = path.replace("\\", "/")
     return (
