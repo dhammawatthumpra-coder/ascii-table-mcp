@@ -16,8 +16,10 @@
 
 ---
 
-> 🌐 **Try it in your browser!** → [**ASCII Table → Image Generator**](https://dhammawatthumpra-coder.github.io/ascii-table-mcp/)
+> 🌐 **Try it in your browser!** → [**ASCII Table → Image Generator**](https://dhammawatthumpra-coder.github.io/ascii-table-mcp/)<br>
 > Paste CSV, pick a style, export as PNG / SVG / Grid / Box / Pipe. Thai + emoji ready. No install needed.
+
+![Web Tool Preview](examples/web_preview.png)
 
 ---
 
