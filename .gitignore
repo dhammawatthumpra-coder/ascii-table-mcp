@@ -2,3 +2,17 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+
+# Temporary render files
+_table_render.html
+table_render.html
+table_web.html
+table_screenshot.py
+table_to_image.py
+
+# Font (download via script)
+NotoSansThai_VF.ttf
+
+# Local scripts
+gen_ratios.py

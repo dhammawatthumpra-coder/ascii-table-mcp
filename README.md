@@ -18,7 +18,7 @@ MCP server สำหรับสร้างตาราง (ASCII grid / Unicod
 
 ## Features
 
-- **4 table styles**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`), `safe` (char-count padding)
+- **5 table formats**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`), `safe` (char-count padding), `html` (HTML file with Noto Sans Thai)
 - **10 grid sub-styles**: `mysql`, `separated`, `compact`, `gfm`, `reddit`, `rounded`, `rst`, `box`, `unicode`, `dots`
 - **Auto-format**: รองรับตัวเลข (right-align) และหัวตาราง (center) — ได้แรงบันดาลใจจาก [ozh/ascii-tables](https://github.com/ozh/ascii-tables)
 - **Thai/Pali/CJK**: zero-width combining marks (พินทุ, สระบน/ล่าง) alignment ไม่เพี้ยน
@@ -77,7 +77,7 @@ hermes mcp add ascii-table --command "python -m ascii_table_mcp"
 |-----------|------|---------|-------------|
 | `headers` | `list[str]` | — | หัวตาราง |
 | `rows` / `data` | `list[list[str]]` | — | แถวข้อมูล |
-| `fmt` | `str` | `"grid"` | `"grid"`, `"box"`, `"pipe"`, `"safe"` |
+|| `fmt` | `str` | `"grid"` | `"grid"`, `"box"`, `"pipe"`, `"safe"`, `"html"` |
 | `style` | `str` | `"mysql"` | ดูตาราง Styles ด้านล่าง |
 | `auto_format` | `bool` | `true` | right-align ตัวเลข, center หัวตาราง |
 | `safe_width` | `bool` | `false` | extra padding สำหรับ Discord/browser |
@@ -271,6 +271,59 @@ wcswidth("กมฺม") → 3  ✅ (พินทุ width 0)
 
 ---
 
+## HTML Table for Discord/Telegram (fmt="html")
+
+Discord และ Telegram **ไม่มี monospace font ที่รองรับภาษาไทยบน Windows** — Cascadia Code, Consolas, Courier New แสดง glyph ไทยเป็น □ (tofu) ส่วน Leelawadee/Tahoma เป็น proportional font ทำให้ `|` และ `│` ใน code block ดูโย้ไม่ตรงกัน
+
+**วิธีแก้:** ใช้ `fmt="html"` ซึ่งจะสร้าง HTML file ด้วย **Noto Sans Thai** จาก Google Fonts แล้วให้ screenshot ผ่าน browser:
+
+```json
+{
+  "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
+  "rows": [["กมฺม", "kamma", "นาม", "กรรม"], ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"]],
+  "fmt": "html"
+}
+```
+
+ผลลัพธ์: HTML file path → เปิดใน browser → screenshot → ส่งภาพ:
+
+```text
+HTML table saved to: F:\_Ai\ascii-table-mcp\_table_render.html
+Open in browser with:
+  browser_navigate(url='file:///F:/_Ai/ascii-table-mcp/_table_render.html')
+Then screenshot with:
+  browser_vision(question='verify')
+```
+
+![ตัวอย่าง HTML table](https://i.imgur.com/placeholder.png)
+
+ข้อดีของ HTML table:
+- Browser จัด column alignment อัตโนมัติ (ไม่ต้องคำนวณ width)
+- Noto Sans Thai อ่านง่าย ออกแบบมาสำหรับภาษาไทย
+- รองรับทุกแพลตฟอร์ม (ส่งเป็นภาพ attachment, ไม่มี font fallback)
+- Dark theme (`#1e1e2e`) เข้ากับ Discord/Telegram dark mode
+
+**Pitfalls:**
+- ต้องการ internet เพื่อโหลด Noto Sans Thai (Google Fonts CDN)
+- ต้องใช้ browser tool (`browser_navigate` + `browser_vision`) เพื่อ screenshot
+- screenshot ต้อง crop ด้วย Pillow (มี helper ใน `table_to_image.py`)
+
+### Auto-workflow (Agent)
+
+เมื่อ Agent เรียก `make_table(fmt="html", ...)` จะได้ HTML file path จากนั้น Agent ทำ:
+
+1. `browser_navigate(url='file:///...')`
+2. `browser_vision(question='verify')`  
+3. Crop image ด้วย Pillow
+4. `MEDIA:<cropped_path>` — ส่งเป็นภาพใน Discord
+
+### Files
+
+- `F:\_Ai\ascii-table-mcp\_table_render.html` — HTML ที่ generate (auto-delete ได้)
+- `F:\_Ai\ascii-table-mcp\table_to_image.py` — helper script
+
+---
+
 ## Grid Styles
 
 10 styles จาก [ozh/ascii-tables](https://github.com/ozh/ascii-tables):
@@ -296,6 +349,7 @@ wcswidth("กมฺม") → 3  ✅ (พินทุ width 0)
 | `box` / `safe` | `┌────┬────┐` | presentation, formal doc |
 | `pipe` | `\| \| \|` | Markdown |
 | `grid` + `safe_width=True` | `+------+----+` | Discord, browser ที่ zero-width ≠ 0 |
+| `html` | HTML `<table>` | Discord/Telegram ภาษาไทย — screenshot เป็นภาพ |
 
 ---
 
@@ -332,8 +386,10 @@ cat table.txt | python -m ascii_table_mcp.generate_table --ascii
 ascii-table-mcp/
 ├── ascii_table_mcp/
 │   ├── __init__.py      # MCP server (FastMCP)
-│   └── generate_table.py # Core rendering engine
+│   ├── generate_table.py # Core rendering engine + render_html_table
+│   └── thaiwidth.py     # Thai-aware display width
 ├── server.py            # Thin wrapper for `python server.py`
+├── table_to_image.py    # HTML → screenshot helper
 ├── requirements.txt     # mcp + wcwidth
 ├── pyproject.toml        # uv / pip install
 ├── ascii-table-mcp.bat  # Windows wrapper

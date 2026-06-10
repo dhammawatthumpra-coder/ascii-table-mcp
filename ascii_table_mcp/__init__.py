@@ -22,6 +22,8 @@ from ascii_table_mcp.generate_table import (
     render_table_debug,
     render_pipe_table,
     render_ascii_grid,
+    render_minimal_table,
+    render_html_table,
     analyze_grid_table,
     validate_table,
     detect_format,
@@ -36,16 +38,28 @@ server = FastMCP("ASCII Table Generator", log_level="WARNING")
 def _format_output(rows, fmt, style="mysql", auto_format=True, safe_width=False):
     if fmt == "pipe":
         return render_pipe_table(rows)
+    elif fmt == "discord":
+        return render_ascii_grid(rows, style=style, auto_format=auto_format, safe_width=safe_width, discord_mode=True)
+    elif fmt == "minimal":
+        return render_minimal_table(rows)
     elif fmt == "grid":
         return render_ascii_grid(rows, style=style, auto_format=auto_format, safe_width=safe_width)
     elif fmt == "safe":
         return render_table_safe(rows)
+    elif fmt == "html":
+        result = render_html_table(rows)
+        url_path = result['path'].replace('\\', '/')
+        return (f"HTML table saved to: {result['path']}\n"
+                f"Open in browser with:\n"
+                f"  browser_navigate(url='file:///{url_path}')\n"
+                f"Then screenshot with:\n"
+                f"  browser_vision(question='verify')")
     else:
         return render_table(rows)
 
 
 def _finish(output, fmt):
-    if fmt == "pipe":
+    if fmt in ("pipe", "minimal", "html"):
         return output
     return f"```text\n{output}\n```"
 
@@ -67,7 +81,10 @@ def make_table(
         rows: List of data rows, each a list of strings
         data: Alias for rows -- pass data here if you prefer (cannot use both)
         fmt: "grid" (default) for ASCII grid, "box" for Unicode box-drawing,
-             "pipe" for Markdown pipe table, "safe" for char-count padding
+             "pipe" for Markdown pipe table, "safe" for char-count padding,
+             "discord" for font-fallback compensation (Windows/Discord),
+             "html" for HTML file with Noto Sans Thai (Google Fonts),
+             "minimal" for clean header-only underline (no borders)
         style: Table style (for grid fmt). One of:
                mysql, separated, compact, gfm, reddit, rounded,
                rst, box, unicode, dots
@@ -75,7 +92,7 @@ def make_table(
         safe_width: Count zero-width combining marks as width 1 (for Discord/browsers)
 
     Returns:
-        Formatted table as a Markdown code block (grid/box/safe) or raw pipe table.
+        Formatted table as a Markdown code block (grid/box/safe/box) or raw text (pipe/minimal/html).
     """
     r = rows if rows is not None else (data if data is not None else [])
     if not r:

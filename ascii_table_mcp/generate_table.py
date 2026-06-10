@@ -21,8 +21,9 @@ Or Auto-convert ASCII/Pipe Table to box-drawing:
   cat table.txt | python3 generate_table.py --ascii
 
 Width handling:
-  - Uses wcwidth/wcswidth for East Asian characters (Thai, CJK)
-  - Zero-width combining marks (พินทุ, ไม้หันอากาศ, สระบน/ล่าง) counted correctly
+  - Uses thai_width() (wcwidth + Thai zero-width override)
+  - Thai combining marks (สระบน/ล่าง, วรรณยุกต์) = width 1
+  - CJK characters (Chinese, Japanese, Korean) = width 2
   - Falls back to len() on ImportError (no wcwidth installed)
 """
 
@@ -30,15 +31,9 @@ import sys
 import csv
 import json
 import re
-# ─── Display width: wcwidth directly (Thai/Pali combining marks handled correctly) ───
-try:
-    from wcwidth import wcswidth
-    def _display_width(s: str) -> int:
-        w = wcswidth(str(s))
-        return w if w >= 0 else len(str(s))
-except ImportError:
-    def _display_width(s: str) -> int:
-        return len(str(s))
+import math
+# ─── Display width: ใช้ thai_width() ที่ override zero-width Thai marks ───
+from ascii_table_mcp.thaiwidth import thai_width as _display_width
 
 
 # ─── ozh/ascii-tables style system ───────────────────────────────────
@@ -193,7 +188,7 @@ def pad_cell(s, width, width_fn=_display_width):
     s = str(s)
     diff = width - width_fn(s)
     if diff > 0:
-        s += ' ' * diff
+        s += ' ' * int(math.ceil(diff))
     return s
 
 
@@ -394,7 +389,7 @@ def analyze_grid_table(text):
     }
 
 
-def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
+def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False, discord_mode=False):
     """Render list-of-lists as ASCII grid table (+---+ style).
 
     Supports multiple styles from ozh/ascii-tables:
@@ -422,10 +417,36 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
     col_count = max(len(r) for r in rows)
     normalised = [r + [''] * (col_count - len(r)) for r in rows]
 
-    # When safe_width=True, use len() instead of wcwidth for column widths
-    # (Discord/browsers render zero-width marks as width 1)
-    width_fn = len if safe_width else _display_width
+    # safe_width: ใช้ len() ล้วนๆ — Discord นับทุกตัวอักษร = 1 cell
+    # ไม่มี coefficient, ไม่มี wcwidth — จัดด้วยจำนวนตัวอักษรจริง
+    # discord: ใช้ per-character font ratio compensation จาก Leelawadee
+    if safe_width:
+        width_fn = len
+    elif discord_mode:
+        from ascii_table_mcp.thaiwidth import thai_width as _discord_width
+        width_fn = lambda s: _discord_width(s, mode='discord')
+    else:
+        width_fn = _display_width
     widths = get_column_widths(normalised, col_count, width_fn=width_fn)
+
+    # discord_mode: extra column padding + flat buffer
+    if discord_mode:
+        from ascii_table_mcp.thaiwidth import THAI_DISCORD_RATIO as _RATIO
+        for row in normalised:
+            for i, cell in enumerate(row):
+                extra = 0
+                has_thai = False
+                for ch in cell:
+                    cp = ord(ch)
+                    if 0x0E01 <= cp <= 0x0E5B:
+                        has_thai = True
+                    ratio = _RATIO.get(cp)
+                    if ratio is not None and ratio > 1.3:
+                        extra += 1
+                if extra > 0:
+                    widths[i] = max(widths[i], len(cell) + extra)
+                elif has_thai:
+                    widths[i] = max(widths[i], len(cell) + 1)
 
     padded_lens = [0] * col_count
     for row in normalised:
@@ -434,17 +455,6 @@ def render_ascii_grid(rows, style="mysql", auto_format=True, safe_width=False):
             total = len(padded) + 2
             if total > padded_lens[i]:
                 padded_lens[i] = total
-
-    # When safe_width=True, add extra padding equal to the gap between
-    # char-count and display-width (Discord renders zero-width marks as width 1).
-    # e.g. "ก๋วยเตี๋ยว" len=10, wcwidth=7 → gap=3 → extra 3 spaces per column.
-    # A small buffer (+1) compensates for remaining font overhang on Discord.
-    if safe_width:
-        dw_widths = get_column_widths(normalised, col_count, width_fn=_display_width)
-        for i in range(col_count):
-            gap = widths[i] - dw_widths[i]
-            if gap > 0:
-                padded_lens[i] += gap + 1  # gap + 1 buffer for Discord font overhang
 
     # Detect numeric columns (ozh/ascii-tables logic)
     if auto_format:
@@ -505,20 +515,11 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
                is_header=False, has_left=True, safe_width=False, width_fn=_display_width):
     """Format a single grid cell with style-aware alignment.
 
-    When safe_width=True, zero-width combining marks are counted as width 1
-    (appropriate for Discord/browsers that don't honour wcwidth zero-width).
+    safe_width=True → width_fn=len — Discord นับทุกตัวอักษร = 1 cell
     """
     content = str(cell)
-    dw = _display_width(content)
-    cw = len(content)
 
-    # effective width: dw for terminals, cw for Discord/browsers
-    eff_w = cw if safe_width else dw
-
-    # active column width for padding: max between display width and effective width
-    # This ensures cells with zero-width marks get enough visual padding
-    active_w = max(widths[col_idx], padded_lens[col_idx] - 2) if safe_width else widths[col_idx]
-
+    eff_w = width_fn(content)
     padded = pad_cell(content, widths[col_idx], width_fn=width_fn)
     extra = padded_lens[col_idx] - len(padded) - 2
     if extra > 0:
@@ -533,7 +534,7 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
             align = "r"
 
     if align == "r":
-        diff = active_w - eff_w
+        diff = widths[col_idx] - eff_w
         if diff < 0:
             diff = 0
         padded = " " * diff + content
@@ -541,7 +542,7 @@ def _grid_cell(cell, col_idx, widths, padded_lens, numeric_cols, sty,
         if extra > 0:
             padded = " " * extra + padded
     elif align == "c" and is_header:
-        diff = active_w - eff_w
+        diff = widths[col_idx] - eff_w
         if diff < 0:
             diff = 0
         left_pad = diff // 2
@@ -776,6 +777,37 @@ def render_table(rows):
     return '\n'.join(lines)
 
 
+def render_minimal_table(rows):
+    """Render list-of-lists as minimal table (no border, header underline).
+
+    Format:
+        หัว1        หัว2        หัว3
+        ───────────────────────────────
+        data1       data2       data3
+
+    Uses thai_width for column sizing.
+    """
+    if not rows:
+        return "(empty table)"
+
+    col_count = max(len(r) for r in rows)
+    normalised = [r + [''] * (col_count - len(r)) for r in rows]
+    widths = get_column_widths(normalised, col_count, width_fn=_display_width)
+
+    # Pad all cells
+    def fmt_row(row):
+        cells = [pad_cell(c, widths[i]) for i, c in enumerate(row)]
+        return '  '.join(cells)
+
+    lines = []
+    lines.append(fmt_row(normalised[0]))          # header
+    total_w = sum(widths) + (col_count - 1) * 2    # content + gaps
+    lines.append('\u2500' * total_w)                # ── line
+    for row in normalised[1:]:
+        lines.append(fmt_row(row))
+    return '\n'.join(lines)
+
+
 def main():
     """Entry point: parse args/TSV/JSON/ASCII and print table."""
     rows = []
@@ -849,5 +881,76 @@ def main():
         print('```')
 
 
+def render_html_table(rows):
+    """Render table as HTML file with Noto Sans Thai (local font).
+
+    สำหรับ Discord/Telegram ที่ code block ไม่สามารถ render ภาษาไทยแบบ monospace
+    ได้ — ใช้ HTML <table> ที่ browser จัด alignment อัตโนมัติ
+
+    ใช้ local font file (NotoSansThai VF) แทน Google Fonts CDN — ใช้งาน offline
+    Font จะถูกคัดลอกไปไว้เดียวกับ HTML file อัตโนมัติ
+
+    Returns:
+        dict with 'path' (saved HTML file path) and 'html' (raw HTML string)
+    """
+    import os, shutil
+
+    FONT_CACHE = r'C:\Users\csuti\AppData\Local\hermes\image_cache\NotoSansThai_VF.ttf'
+    ESC_TR = str.maketrans({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})
+
+    def esc(s):
+        return str(s).translate(ESC_TR)
+
+    def rows_to_html(rows):
+        parts = []
+        for i, row in enumerate(rows):
+            tag = 'th' if i == 0 else 'td'
+            cells = ''.join(f'<{tag}>{esc(c)}</{tag}>' for c in row)
+            parts.append(f'  <tr>{cells}</tr>')
+        return '\n'.join(parts)
+
+    out_dir = os.path.join(os.path.dirname(__file__) or '.', os.pardir)
+
+    # คัดลอก font ไปไว้ที่เดียวกับ HTML
+    font_dest = os.path.join(out_dir, 'NotoSansThai_VF.ttf')
+    if os.path.exists(FONT_CACHE) and not os.path.exists(font_dest):
+        shutil.copy2(FONT_CACHE, font_dest)
+
+    font_url = 'NotoSansThai_VF.ttf'
+    if not os.path.exists(font_dest):
+        # fallback: ใช้ CDN ถ้าไม่มี local font
+        font_css = ('<link href="https://fonts.googleapis.com/css2?'
+                    'family=Noto+Sans+Thai:wght@400;700&display=swap" rel="stylesheet">')
+        font_family = "'Noto Sans Thai', sans-serif"
+    else:
+        font_css = f'<style>@font-face {{ font-family: "Noto Sans Thai"; src: url("{font_url}"); font-weight: 400; }}</style>'
+        font_family = "'Noto Sans Thai', sans-serif"
+
+    html = f'''<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+{font_css}
+<style>
+body {{ background: #1e1e2e; margin: 0; padding: 0; }}
+table {{ border-collapse: collapse; font-family: {font_family}; font-size: 24px; color: #cdd6f4; margin: 0; }}
+th, td {{ border: 2px solid #45475a; padding: 10px 24px; text-align: left; white-space: nowrap; }}
+th {{ background: #313244; font-weight: 700; }}
+td {{ background: #1e1e2e; }}
+</style>
+</head>
+<body>
+<table>
+{rows_to_html(rows)}
+</table>
+</body>
+</html>'''
+
+    out_path = os.path.join(out_dir, '_table_render.html')
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    return {"path": os.path.abspath(out_path), "html": html}
+
+
 if __name__ == '__main__':
-    main()
+    pass
