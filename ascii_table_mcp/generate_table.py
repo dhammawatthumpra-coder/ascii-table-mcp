@@ -988,7 +988,7 @@ td {{ background: {theme['td_bg']}; }}
 </body>
 </html>'''
 
-    out_path = os.path.join(out_dir, '_table_render.html')
+    out_path = os.path.join(out_dir, f'_table_render_{style}.html')
     with open(out_path, 'w', encoding='utf-8') as f:
         f.write(html)
     return {"path": os.path.abspath(out_path), "html": html}

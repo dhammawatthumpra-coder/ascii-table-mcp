@@ -1,63 +1,49 @@
-# คู่มือการใช้งาน ascii-table-mcp
+# คู่มือการใช้งาน ASCII Table MCP
 
-ตารางภาษาไทย + โรมัน + ตัวเลข — alignment ตรงทุกแถว  
-รองรับทั้ง code block ปกติ และส่งเป็นภาพสำหรับ Discord/Telegram
-
----
-
-## สารบัญ
-
-1. [ติดตั้ง](#1-ติดตั้ง)
-2. [แบบ code block (terminal/GitHub/Discord ทั่วไป)](#2-แบบ-code-block)
-3. [แบบภาพ (Discord โพสต์ภาษาไทย)](#3-แบบภาพ)
-4. [ตัวอย่างการใช้งาน](#4-ตัวอย่าง)
+เครื่องมือสร้างตารางที่รองรับภาษาไทย บาลี และ CJK — ใช้ได้ทั้งแบบ Code Block และ HTML Image
 
 ---
 
-## 1. ติดตั้ง
+## แบบที่ 1: Code Block (สำหรับ Terminal / GitHub)
 
-### pip
-
-```bash
-git clone https://github.com/dhammawatthumpra-coder/ascii-table-mcp.git
-cd ascii-table-mcp
-pip install -e .
-```
-
-### Register กับ Hermes
-
-```bash
-hermes mcp add ascii-table --command "python -m ascii_table_mcp"
-```
-
-### Register กับ Claude Desktop
+ใช้ `fmt="grid"` กับ `safe_width=True`:
 
 ```json
 {
-  "mcpServers": {
-    "ascii-table": {
-      "command": "python",
-      "args": ["-m", "ascii_table_mcp"]
-    }
-  }
+  "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
+  "rows": [
+    ["กมฺม", "kamma", "นาม", "กรรม"],
+    ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"]
+  ],
+  "fmt": "grid",
+  "safe_width": true
 }
 ```
 
+ผลลัพธ์:
+
+```text
++----------+-------+---------+---------------+
+| คำบาลี   | Roman | หมวด    | ความหมาย      |
++----------+-------+---------+---------------+
+| กมฺม     | kamma | นาม     | กรรม          |
+| ญาณ      | ñāṇa  | ปัญญา   | ความรู้แจ้ง   |
++----------+-------+---------+---------------+
+```
+
+**หมายเหตุ:** Code block ใช้ได้ดีบน GitHub, terminal, และ platform ที่มี monospace font รองรับภาษาไทย  
+บน Discord/Telegram Windows ภาษาไทยอาจดูโย้เพราะไม่มี monospace font ไทย — ใช้ **แบบที่ 2** แทน
+
 ---
 
-## 2. แบบ code block
+## แบบที่ 2: HTML + Screenshot (สำหรับ Discord / Telegram)
 
-ใช้ได้ทุกที่ที่ render monospace font terminal, GitHub PR, Discord (ภาษาอังกฤษ/ตัวเลข)
+ใช้ `fmt="html"` เพื่อสร้างตารางด้วย Noto Sans Thai (Google Fonts) ที่ดูสวยงามทุก platform  
+จากนั้น screenshot เป็นภาพ ส่งเป็น attachment
 
-| `fmt` | ลักษณะ | เหมาะกับ |
-|-------|--------|----------|
-| `"grid"` (default) | `+----+----+` | ทั่วไป, terminal, GitHub |
-| `"box"` | `┌────┬────┐` | presentation, formal doc |
-| `"pipe"` | `\| \| \|` | Markdown (.md files) |
-| `"safe"` | box-drawing + len padding | Discord/browser ที่ zero-width ≠ 0 |
-| `"minimal"` | ไม่มีกรอบ มีแต่ underline | กระทู้ Reddit, blog |
+**ขั้นตอน:**
 
-### ตัวอย่าง
+### 1. สร้าง HTML
 
 ```json
 {
@@ -67,130 +53,87 @@ hermes mcp add ascii-table --command "python -m ascii_table_mcp"
     ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"],
     ["ก๋วยเตี๋ยว", "thai", "อาหาร", "noodle soup"]
   ],
-  "fmt": "grid"
+  "fmt": "html",
+  "style": "dark"
 }
 ```
 
-ผลลัพธ์:
+### 2. เปิดใน Browser
 
-```text
-+---------------+---------------+---------+-------------------+
-| คำบาลี        | Roman         | หมวด    | ความหมาย          |
-+---------------+---------------+---------+-------------------+
-| กมฺม          | kamma         | นาม     | กรรม              |
-| ญาณ           | ñāṇa          | ปัญญา   | ความรู้แจ้ง       |
-| ก๋วยเตี๋ยว    | thai          | อาหาร   | noodle soup       |
-+---------------+---------------+---------+-------------------+
+```python
+browser_navigate(url='file:///F:/_Ai/ascii-table-mcp/_table_render_dark.html')
 ```
 
-### safe_width
+### 3. Screenshot
 
-ถ้า Discord/browser render สระบน/ล่าง ( ิ ี ึ ื ั ุ ู) กว้างเกิน wcwidth ให้เปิด:
+```python
+browser_vision(question='verify')
+```
+→ จะได้ screenshot path (ถึง vision ล่ม ไฟล์ก็ถูกบันทึก)
 
-```json
-{
-  "headers": ["ชื่อ", "ราคา"],
-  "rows": [["ก๋วยเตี๋ยว", "45"]],
-  "fmt": "grid",
-  "safe_width": true
-}
+### 4. Crop (trim พื้นหลัง)
+
+```python
+from PIL import Image
+img = Image.open(screenshot_path)
+bg = (30, 30, 46)  # หรือ (255,255,255) ถ้า style=light
+# crop อัตโนมัติ
+img.crop((left, top, right, bottom)).save('table.png')
+```
+
+### 5. ส่งเป็นภาพ
+
+```
+MEDIA:table.png
 ```
 
 ---
 
-## 3. แบบภาพ
+## เปลี่ยน Style
 
-สำหรับ **Discord/Telegram ที่มีภาษาไทย** —  
-Windows ไม่มี monospace font ที่ support ภาษาไทย ทำให้ code block ดูโย้
-
-### วิธีใช้
-
-ใช้ `fmt="html"` แทน:
+| Style | Preview | ใช้กับ |
+|-------|---------|-------|
+| `dark` | ![dark](examples/ex_dark.png) | Discord/Telegram dark mode |
+| `light` | ![light](examples/ex_light.png) | Document, PDF |
+| `minimal` | ![minimal](examples/ex_minimal.png) | Blog, website |
+| `compact` | ![compact](examples/ex_compact.png) | เนื้อหาเยอะ, จอแคบ |
 
 ```json
-{
-  "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
-  "rows": [
-    ["กมฺม", "kamma", "นาม", "กรรม"],
-    ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"]
-  ],
-  "fmt": "html"
-}
+{ "fmt": "html", "style": "light" }
 ```
-
-ผลลัพธ์ที่ได้คือ **HTML file path**:
-
-```
-HTML table saved to: F:\_Ai\ascii-table-mcp\_table_render.html
-Open in browser with:
-  browser_navigate(url='file:///F:/_Ai/ascii-table-mcp/_table_render.html')
-Then screenshot with:
-  browser_vision(question='verify table')
-```
-
-### Auto-workflow (สำหรับ Agent)
-
-Agent จะทำอัตโนมัติเมื่อเจอ `fmt="html"`:
-
-```
-Agent → make_table(fmt="html", ...)
-     ↓ สร้าง HTML file
-     ↓ browser_navigate(url=...)
-     ↓ browser_vision(question='verify')
-     ↓ crop ด้วย Pillow
-     ↓ MEDIA:<cropped_image>  → ส่งเป็นภาพใน Discord
-```
-
-### ตัวอย่างผลลัพธ์ (ภาพ)
-
-![ตัวอย่างตารางภาษาไทย](https://i.imgur.com/placeholder.png)
-
-**ข้อดีของแบบภาพ:**
-- ✅ ภาษาไทยอ่านชัดเจน (ใช้ Noto Sans Thai)
-- ✅ alignment ตรง — browser จัด column ให้อัตโนมัติ
-- ✅ ใช้ offline ได้ (font ถูกแคช local)
-- ✅ สี dark theme เข้ากับ Discord/Telegram
-
-**ข้อควรรู้:**
-- ต้องการ browser session (Hermes/Claude Desktop ต้องมี browser tool)
-- font ~450KB (download ครั้งแรก แล้ว cache ไว้)
-- ไม่เหมาะกับที่ไม่มี browser tool (CLI-only)
 
 ---
 
-## 4. ตัวอย่าง
+## เปลี่ยนตาราง (Grid sub-style)
 
-### 4.1 ตารางบาลี 4 คอลัมน์
+ใช้กับ `fmt="grid"`:
+
+| style | ลักษณะ |
+|-------|--------|
+| `mysql` (default) | `+--+--+` มาตรฐาน |
+| `separated` | `+==+==+` หัวตารางหนา |
+| `compact` | ไม่มีกรอบ |
+| `gfm` | `|--|` แบบ GitHub |
+| `box` / `unicode` | ┌─┬─┐ หรือ ╔═╦═╗ |
 
 ```json
-{
-  "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
-  "rows": [
-    ["ปฏิจจสมุปฺปาท", "paṭiccasamuppāda", "ธรรม", "เหตุปัจจัยต่อเนื่อง"],
-    ["กามจฺฉนฺท", "kāmacchanda", "นิวรณ์", "ความพอใจในกาม"],
-    ["อวิชฺชา", "avijjā", "กิเลส", "ความไม่รู้"]
-  ],
-  "fmt": "grid",
-  "auto_format": false
-}
+{ "fmt": "grid", "style": "box" }
 ```
 
-### 4.2 ตารางตัวเลข (auto right-align)
+---
+
+## Auto-Format
+
+`auto_format=true` (default) → ตัวเลขชิดขวา, หัวตารางกึ่งกลาง
 
 ```json
 {
   "headers": ["สินค้า", "ราคา", "จำนวน"],
-  "rows": [
-    ["ก๋วยเตี๋ยว", "45", "3"],
-    ["ข้าวผัด", "55", "2"],
-    ["รวม", "100", "5"]
-  ],
+  "rows": [["ก๋วยเตี๋ยว", "45", "3"], ["ข้าวผัด", "55", "2"]],
   "fmt": "grid",
-  "style": "separated"
+  "auto_format": true
 }
 ```
-
-ผลลัพธ์:
 
 ```text
 +============+======+=======+
@@ -201,46 +144,15 @@ Agent → make_table(fmt="html", ...)
 +------------+------+-------+
 | ข้าวผัด    |   55 |     2 |
 +------------+------+-------+
-| รวม        |  100 |     5 |
-+------------+------+-------+
 ```
-
-### 4.3 ตารางภาษาไทยสำหรับ Discord (แบบภาพ)
-
-```json
-{
-  "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
-  "rows": [
-    ["กมฺม", "kamma", "นาม", "กรรม"],
-    ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"],
-    ["ก๋วยเตี๋ยว", "thai", "อาหาร", "noodle soup"]
-  ],
-  "fmt": "html"
-}
-```
-
-Agent จะส่งภาพให้อัตโนมัติ
 
 ---
 
-## Troubleshooting
+## ไฟล์ประกอบ
 
-**Q: ตารางใน Discord code block ยังโย้**
-A: Discord code block ไม่มี monospace font ไทย → ใช้ `fmt="html"` + screenshot แทน
-
-**Q: `fmt="html"` ไม่มี internet**
-A: font ถูกดาวน์โหลดแคชไว้ที่ `image_cache/NotoSansThai_VF.ttf` ใช้ offline ได้
-
-**Q: อยากให้ตารางเล็กลง / ใหญ่ขึ้น**
-A: ปรับ `padding` ใน CSS ของ `render_html_table()`
-
-**Q: ใช้กับ Telegram ได้ไหม**
-A: ได้ — ส่งเป็นภาพ attachment เหมือน Discord
-
----
-
-## Reference
-
-- GitHub: https://github.com/dhammawatthumpra-coder/ascii-table-mcp
-- รายงาน bug / suggestions: เปิด issue ที่ GitHub
-- MCP tools: `make_table`, `make_table_from_csv`, `make_table_from_json`, `make_table_preview`, `debug_table`, `analyze_table`, `validate_table_text`
+| ไฟล์ | หน้าที่ |
+|------|--------|
+| `_table_render_*.html` | HTML สำหรับ screenshot |
+| `NotoSansThai_VF.ttf` | ฟอนต์ไทย (local) |
+| `table_to_image.py` | Helper สร้าง HTML |
+| `examples/*.png` | รูปตัวอย่างสำหรับคู่มือ |
