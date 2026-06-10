@@ -14,6 +14,9 @@
 
 MCP server สำหรับสร้างตาราง (ASCII grid / Unicode box-drawing) ที่รองรับภาษาไทย บาลี โรมัน และ CJK อย่างถูกต้อง — ใช้ `wcwidth` ในการวัดความกว้างตัวอักษร ไม่ใช้ `len()` ที่นับผิด
 
+> 🌐 **ลองใช้บนเว็บ!** → [**ASCII Table → Image Generator**](https://dhammawatthumpra-coder.github.io/ascii-table-mcp/)
+> วาง CSV, เลือก style, export ได้ทั้ง PNG / SVG / Grid / Box / Pipe. รองรับไทย + emoji. ไม่ต้องติดตั้ง.
+
 ---
 
 ## Features
