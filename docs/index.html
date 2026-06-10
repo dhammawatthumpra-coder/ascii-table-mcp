@@ -232,7 +232,10 @@ Box:     ┌────────┬───────┐"></textarea>
       <button class="tool-btn" onclick="exportSVG()">SVG</button>
       <button class="tool-btn" onclick="exportGrid()">+--+</button>
       <button class="tool-btn" onclick="exportBox()">┌─┬┐</button>
-      <button class="tool-btn" onclick="exportPipe()">\u007C \u007C</button>
+      <button class="tool-btn" onclick="exportPipe()">| |</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" onclick="clearData()" style="color:#f38ba8;">✕</button>
+      <button class="tool-btn" onclick="pasteData()" style="color:#a6e3a1;">📋</button>
     </div>
   </div>
 
@@ -387,6 +390,26 @@ document.querySelectorAll('.tool-btn[data-style]').forEach(btn => {
 document.querySelectorAll('.tool-btn[data-size]').forEach(btn => {
   btn.addEventListener('click', () => applySize(btn.dataset.size));
 });
+
+// Clear input
+function clearData() {
+  TEXTAREA.value = '';
+  render();
+}
+
+// Paste from clipboard
+function pasteData() {
+  navigator.clipboard.readText().then(text => {
+    if (text) {
+      TEXTAREA.value = text;
+      render();
+    }
+  }).catch(() => {
+    // Fallback: focus and let user Ctrl+V
+    TEXTAREA.focus();
+    document.execCommand('paste');
+  });
+}
 
 // Auto-render on input
 TEXTAREA.addEventListener('input', render);
