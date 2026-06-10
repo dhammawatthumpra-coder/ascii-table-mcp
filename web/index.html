@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII Table Image Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #11111b;
+  color: #cdd6f4;
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+h1 { margin: 20px 0 8px; font-size: 28px; letter-spacing: -0.5px; }
+.sub { color: #6c7086; margin-bottom: 24px; font-size: 14px; }
+.container {
+  max-width: 1000px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 700px) {
+  .container { grid-template-columns: 1fr; }
+}
+
+/* Input panel */
+.panel {
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 12px;
+  padding: 20px;
+}
+.panel h2 { font-size: 16px; margin-bottom: 12px; color: #a6adc8; }
+textarea {
+  width: 100%;
+  height: 220px;
+  background: #181825;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  color: #cdd6f4;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+}
+textarea:focus { border-color: #89b4fa; }
+.label { font-size: 13px; color: #a6adc8; margin: 12px 0 4px; }
+
+/* Style buttons */
+.style-group { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.style-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #45475a;
+  background: #313244;
+  color: #cdd6f4;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.style-btn:hover { background: #45475a; }
+.style-btn.active {
+  background: #89b4fa;
+  color: #11111b;
+  border-color: #89b4fa;
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn-group { display: flex; gap: 8px; margin-top: 12px; }
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+}
+.btn-primary { background: #89b4fa; color: #11111b; }
+.btn-primary:hover { background: #74c7ec; }
+.btn-secondary { background: #45475a; color: #cdd6f4; }
+.btn-secondary:hover { background: #585b70; }
+
+/* Preview panel */
+.preview-panel {
+  background: #1e1e2e;
+  border: 1px solid #313244;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.preview-panel h2 { font-size: 16px; margin-bottom: 12px; color: #a6adc8; }
+.preview-wrap {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+  border-radius: 8px;
+  background: #181825;
+  min-height: 300px;
+}
+
+/* The actual table — rendered here */
+#table-wrap {
+  display: inline-block;
+  padding: 20px;
+}
+
+/* Dark theme */
+.dark-theme table {
+  border-collapse: collapse;
+  font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
+  font-size: 20px;
+  color: #cdd6f4;
+}
+.dark-theme th, .dark-theme td {
+  border: 2px solid #45475a;
+  padding: 10px 24px;
+  text-align: left;
+  white-space: nowrap;
+}
+.dark-theme th { background: #313244; font-weight: 700; }
+.dark-theme td { background: #1e1e2e; }
+
+/* Light theme */
+.light-theme table {
+  border-collapse: collapse;
+  font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
+  font-size: 20px;
+  color: #1e1e2e;
+}
+.light-theme th, .light-theme td {
+  border: 2px solid #ccc;
+  padding: 10px 24px;
+  text-align: left;
+  white-space: nowrap;
+}
+.light-theme th { background: #f5f5f5; font-weight: 700; }
+.light-theme td { background: #fff; }
+
+/* Minimal theme */
+.minimal-theme table {
+  border-collapse: collapse;
+  font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
+  font-size: 20px;
+  color: #cdd6f4;
+}
+.minimal-theme th, .minimal-theme td {
+  border: 1px solid #555;
+  padding: 10px 24px;
+  text-align: left;
+  white-space: nowrap;
+}
+.minimal-theme th { background: #2a2a3a; font-weight: 700; }
+.minimal-theme td { background: #1e1e2e; }
+
+/* Compact theme */
+.compact-theme table {
+  border-collapse: collapse;
+  font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
+  font-size: 18px;
+  color: #cdd6f4;
+}
+.compact-theme th, .compact-theme td {
+  border: 1px solid #45475a;
+  padding: 4px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+.compact-theme th { background: #313244; font-weight: 700; }
+.compact-theme td { background: #1e1e2e; }
+
+/* Footer */
+.footer {
+  margin-top: 30px;
+  font-size: 13px;
+  color: #585b70;
+  text-align: center;
+}
+.footer a { color: #89b4fa; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>📊 ASCII Table → Image</h1>
+<p class="sub">Paste CSV data, pick a style, download as PNG — Thai, Pali & emoji ready</p>
+
+<div class="container">
+
+  <!-- Input panel -->
+  <div class="panel">
+    <h2>📝 Data</h2>
+    <textarea id="csv-input" placeholder="Paste CSV data here (first row = headers)
+
+Example:
+คำบาลี,Roman,หมวด,ความหมาย
+กมฺม,kamma,นาม,กรรม
+ญาณ,ñāṇa,ปัญญา,ความรู้แจ้ง
+ก๋วยเตี๋ยว,noodle,อาหาร,🍜 soup
+อวิชฺชา,avijjā,กิเลส, ignorance"></textarea>
+
+    <div class="label">🎨 Style</div>
+    <div class="style-group" id="style-group">
+      <button class="style-btn active" data-style="dark">Dark</button>
+      <button class="style-btn" data-style="light">Light</button>
+      <button class="style-btn" data-style="minimal">Minimal</button>
+      <button class="style-btn" data-style="compact">Compact</button>
+    </div>
+
+    <div class="label">📐 Font size</div>
+    <div class="style-group" id="size-group">
+      <button class="style-btn" data-size="16">16px</button>
+      <button class="style-btn active" data-size="20">20px</button>
+      <button class="style-btn" data-size="24">24px</button>
+      <button class="style-btn" data-size="28">28px</button>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="downloadPNG()">⬇ Download PNG</button>
+      <button class="btn btn-secondary" onclick="copyHTML()">📋 Copy HTML</button>
+    </div>
+  </div>
+
+  <!-- Preview panel -->
+  <div class="preview-panel">
+    <h2>👁 Preview</h2>
+    <div class="preview-wrap" id="preview-wrap">
+      <div id="table-wrap" class="dark-theme"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Part of <a href="https://github.com/dhammawatthumpra-coder/ascii-table-mcp">ascii-table-mcp</a> —
+  MIT License
+</div>
+
+<script>
+const TEXTAREA = document.getElementById('csv-input');
+const TABLE_WRAP = document.getElementById('table-wrap');
+const PREVIEW_WRAP = document.getElementById('preview-wrap');
+
+let currentStyle = 'dark';
+let currentSize = 20;
+
+// Parse CSV to 2D array
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  return lines.map(l => {
+    // Simple CSV parse (handles quoted fields)
+    const row = [];
+    let current = '';
+    let inQuote = false;
+    for (const ch of l) {
+      if (ch === '"') { inQuote = !inQuote; continue; }
+      if (ch === ',' && !inQuote) { row.push(current.trim()); current = ''; continue; }
+      current += ch;
+    }
+    row.push(current.trim());
+    return row;
+  });
+}
+
+// Render table
+function render() {
+  const raw = TEXTAREA.value;
+  const data = parseCSV(raw);
+  if (data.length === 0) {
+    TABLE_WRAP.innerHTML = '<div style="color:#6c7086;padding:40px;text-align:center;">✨ Paste data to see preview</div>';
+    return;
+  }
+
+  const headers = data[0];
+  const rows = data.slice(1);
+
+  let html = '<table>';
+  html += '<tr>' + headers.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>';
+  for (const row of rows) {
+    html += '<tr>' + row.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>';
+  }
+  html += '</table>';
+
+  TABLE_WRAP.innerHTML = html;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Rebuild classlist for theme
+function applyStyle(style) {
+  currentStyle = style;
+  TABLE_WRAP.className = style + '-theme';
+  // Update active button
+  document.querySelectorAll('#style-group .style-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.style === style);
+  });
+  // Update preview bg
+  const bg = style === 'light' ? '#f5f5f5' : '#181825';
+  PREVIEW_WRAP.style.background = bg;
+  render();
+}
+
+function applySize(size) {
+  currentSize = parseInt(size);
+  TABLE_WRAP.style.fontSize = size + 'px';
+  document.querySelectorAll('#size-group .style-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.size === size);
+  });
+}
+
+// Style button clicks
+document.querySelectorAll('#style-group .style-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyStyle(btn.dataset.style));
+});
+document.querySelectorAll('#size-group .style-btn').forEach(btn => {
+  btn.addEventListener('click', () => applySize(btn.dataset.size));
+});
+
+// Auto-render on input
+TEXTAREA.addEventListener('input', render);
+
+// Download PNG
+async function downloadPNG() {
+  const table = TABLE_WRAP.querySelector('table');
+  if (!table || !table.rows.length) return;
+
+  const btn = document.querySelector('.btn-primary');
+  btn.textContent = '⏳ Rendering...';
+  btn.disabled = true;
+
+  try {
+    // Get the bg color
+    const bg = currentStyle === 'light' ? '#ffffff' : '#1e1e2e';
+
+    const canvas = await html2canvas(table, {
+      scale: 2,
+      backgroundColor: bg,
+      useCORS: true,
+      logging: false,
+      width: table.scrollWidth,
+      height: table.scrollHeight,
+    });
+
+    // Add padding to canvas
+    const pad = 20;
+    const padded = document.createElement('canvas');
+    padded.width = canvas.width + pad * 2;
+    padded.height = canvas.height + pad * 2;
+    const ctx = padded.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, padded.width, padded.height);
+    ctx.drawImage(canvas, pad, pad);
+
+    // Download
+    const link = document.createElement('a');
+    link.download = 'table_' + currentStyle + '.png';
+    link.href = padded.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+
+  btn.textContent = '⬇ Download PNG';
+  btn.disabled = false;
+}
+
+// Copy HTML
+function copyHTML() {
+  const html = TABLE_WRAP.innerHTML;
+  navigator.clipboard.writeText(html).then(() => {
+    alert('📋 HTML copied!');
+  }).catch(() => {
+    alert('❌ Copy failed — select and copy manually');
+  });
+}
+
+// Load default example
+render();
+</script>
+</body>
+</html>
