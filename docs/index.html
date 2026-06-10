@@ -206,14 +206,12 @@ textarea:focus { border-color: #89b4fa; }
 
   <!-- Input panel -->
   <div class="panel" style="padding: 12px 16px;">
-    <textarea id="csv-input" style="height:130px;font-size:12px;" placeholder="CSV or Markdown table (first row = headers)
+    <textarea id="csv-input" style="height:130px;font-size:12px;" placeholder="Accept any format: CSV, Markdown pipe, Grid (+--+), Box (┌─┬┐)
 
-CSV: คำบาลี,Roman,หมวด,ความหมาย / กมฺม,kamma,นาม,กรรม
-
-Markdown:
-| คำบาลี | Roman | หมวด | ความหมาย |
-|--------|-------|------|----------|
-| กมฺม  | kamma | นาม  | กรรม     |"></textarea>
+CSV:     คำบาลี,Roman
+Pipe:    | คำบาลี | Roman |
+Grid:    +--------+-------+
+Box:     ┌────────┬───────┐"></textarea>
 
     <div class="toolbar">
       <span class="label-sm">Style</span>
@@ -261,7 +259,7 @@ const PREVIEW_WRAP = document.getElementById('preview-wrap');
 let currentStyle = 'dark';
 let currentSize = 20;
 
-// Parse CSV or Markdown pipe table → 2D array
+// Parse CSV / Markdown pipe / Grid box (+--+, ┌─┬┐) → 2D array
 function parseData(text) {
   const lines = text.trim().split('\n').filter(l => l.trim());
   if (lines.length === 0) return [];
@@ -273,7 +271,21 @@ function parseData(text) {
     const dataLines = pipeLines.filter(l => !/^\|[- :]+\|/.test(l.trim()));
     return dataLines.map(l => {
       const cells = l.split('|').filter(c => c.trim() !== '');
-      // Remove leading/trailing pipe artifacts
+      return cells.map(c => c.trim());
+    });
+  }
+
+  // Detect: Code block table (grid +--+ or box ┌─┬┐)
+  // Signal: lines with + or ┌/├/└ alternating with lines having | or │
+  const hasBorder = lines.some(l => /^[+┌├└╔╠╚]/.test(l.trim()));
+  const dataLines = hasBorder
+    ? lines.filter(l => /[│|]/.test(l) && !/^[+┌├└╔╠╚][─═-]/.test(l.trim()))
+    : null;
+
+  if (dataLines && dataLines.length >= 1) {
+    return dataLines.map(l => {
+      // Split by │ or | and trim each cell
+      const cells = l.split(/[│|]/).filter(c => c.trim() !== '');
       return cells.map(c => c.trim());
     });
   }
