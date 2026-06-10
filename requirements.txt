@@ -1,3 +1,4 @@
 mcp>=1.0.0
 wcwidth>=0.2.0
-Pillow>=10.0.0  # table_to_image.py (screenshot cropping)
+Pillow>=10.0.0         # table_to_image.py (screenshot cropping)
+playwright>=1.40.0     # export_png (Playwright headless browser)
