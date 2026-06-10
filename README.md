@@ -16,6 +16,11 @@
 
 ---
 
+> 🌐 **Try it in your browser!** → [**ASCII Table → Image Generator**](https://dhammawatthumpra-coder.github.io/ascii-table-mcp/)
+> Paste CSV, pick a style, export as PNG / SVG / Grid / Box / Pipe. Thai + emoji ready. No install needed.
+
+---
+
 **Why this exists:** Most ASCII table libraries use `len()` in Python, which counts combining marks (like Thai tone marks, Devanagari vowel signs) as separate characters. This **breaks alignment** for any language with zero-width characters. This server uses `wcwidth` — the same library terminals use — so columns line up correctly, on every platform.
 
 ---
