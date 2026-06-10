@@ -200,14 +200,16 @@ textarea:focus { border-color: #89b4fa; }
   <!-- Input panel -->
   <div class="panel">
     <h2>📝 Data</h2>
-    <textarea id="csv-input" placeholder="Paste CSV data here (first row = headers)
+    <textarea id="csv-input" placeholder="Paste CSV or Markdown pipe table (first row = headers)
 
-Example:
+CSV:
 คำบาลี,Roman,หมวด,ความหมาย
 กมฺม,kamma,นาม,กรรม
-ญาณ,ñāṇa,ปัญญา,ความรู้แจ้ง
-ก๋วยเตี๋ยว,noodle,อาหาร,🍜 soup
-อวิชฺชา,avijjā,กิเลส, ignorance"></textarea>
+
+Markdown:
+| คำบาลี | Roman | หมวด | ความหมาย |
+|--------|-------|------|----------|
+| กมฺม  | kamma | นาม  | กรรม     |"></textarea>
 
     <div class="label">🎨 Style</div>
     <div class="style-group" id="style-group">
@@ -262,11 +264,25 @@ const PREVIEW_WRAP = document.getElementById('preview-wrap');
 let currentStyle = 'dark';
 let currentSize = 20;
 
-// Parse CSV to 2D array
-function parseCSV(text) {
+// Parse CSV or Markdown pipe table → 2D array
+function parseData(text) {
   const lines = text.trim().split('\n').filter(l => l.trim());
+  if (lines.length === 0) return [];
+
+  // Detect: Markdown pipe table (lines start with |)
+  const pipeLines = lines.filter(l => l.trim().startsWith('|'));
+  if (pipeLines.length >= 2) {
+    // Skip separator line (|--|--|)
+    const dataLines = pipeLines.filter(l => !/^\|[- :]+\|/.test(l.trim()));
+    return dataLines.map(l => {
+      const cells = l.split('|').filter(c => c.trim() !== '');
+      // Remove leading/trailing pipe artifacts
+      return cells.map(c => c.trim());
+    });
+  }
+
+  // Fallback: CSV
   return lines.map(l => {
-    // Simple CSV parse (handles quoted fields)
     const row = [];
     let current = '';
     let inQuote = false;
@@ -283,7 +299,7 @@ function parseCSV(text) {
 // Render table
 function render() {
   const raw = TEXTAREA.value;
-  const data = parseCSV(raw);
+  const data = parseData(raw);
   if (data.length === 0) {
     TABLE_WRAP.innerHTML = '<div style="color:#6c7086;padding:40px;text-align:center;">✨ Paste data to see preview</div>';
     return;
@@ -397,7 +413,7 @@ function copyHTML() {
 // --- helpers for code-block exports ---
 function getData() {
   const raw = TEXTAREA.value;
-  const data = parseCSV(raw);
+  const data = parseData(raw);
   if (data.length < 2) return null;
   return { headers: data[0], rows: data.slice(1) };
 }
