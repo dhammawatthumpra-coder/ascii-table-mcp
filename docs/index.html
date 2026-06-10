@@ -227,12 +227,12 @@ Box:     ┌────────┬───────┐"></textarea>
     <div class="toolbar" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;">
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
         <button class="tool-btn primary" onclick="downloadPNG()">⬇ PNG</button>
-        <button class="tool-btn" onclick="copyHTML()">📋 HTML</button>
+        <button class="tool-btn" onclick="exportSVG()">⬇ SVG</button>
         <span class="tool-sep"></span>
-        <button class="tool-btn" onclick="exportSVG()">SVG</button>
-        <button class="tool-btn" onclick="exportGrid()">+--+</button>
-        <button class="tool-btn" onclick="exportBox()">┌─┬┐</button>
-        <button class="tool-btn" onclick="exportPipe()">| |</button>
+        <button class="tool-btn" onclick="copyHTML()">📋 HTML</button>
+        <button class="tool-btn" onclick="copyGrid()">📋 +--+</button>
+        <button class="tool-btn" onclick="copyBox()">📋 ┌─┬┐</button>
+        <button class="tool-btn" onclick="copyPipe()">📋 ||</button>
       </div>
       <div style="margin-left:auto;display:flex;gap:4px;align-items:center;">
         <button class="tool-btn" onclick="clearData()" style="color:#f38ba8;font-size:11px;padding:2px 8px;">✕ Clear</button>
@@ -475,6 +475,50 @@ function copyHTML() {
   });
 }
 
+// Copy code-block formats to clipboard
+function copyGrid() {
+  copyCodeBlock({
+    tl:'+', tm:'+', tr:'+',
+    ml:'+', mm:'+', mr:'+',
+    bl:'+', bm:'+', br:'+',
+    h:'-', v:'|'
+  }, 'Grid');
+}
+function copyBox() {
+  copyCodeBlock({
+    tl:'┌', tm:'┬', tr:'┐',
+    ml:'├', mm:'┼', mr:'┤',
+    bl:'└', bm:'┴', br:'┘',
+    h:'─', v:'│'
+  }, 'Box');
+}
+function copyPipe() {
+  const d = getData();
+  if (!d) { alert('No data'); return; }
+  const { headers, rows } = d;
+  const colW = headers.map((h, ci) => {
+    let max = dw(h);
+    for (const r of rows) if (dw(r[ci]) > max) max = dw(r[ci]);
+    return max;
+  });
+  let out = '| ' + headers.map((h, i) => h.padEnd(colW[i])).join(' | ') + ' |\n';
+  out += '|-' + colW.map(w => '-'.repeat(w)).join('-|-') + '-|\n';
+  for (const row of rows) {
+    out += '| ' + row.map((c, i) => String(c).padEnd(colW[i])).join(' | ') + ' |\n';
+  }
+  navigator.clipboard.writeText(out).then(() => {
+    alert('📋 Pipe table copied!');
+  }).catch(() => alert('❌ Copy failed'));
+}
+function copyCodeBlock(chars, name) {
+  const d = getData();
+  if (!d) { alert('No data'); return; }
+  const text = buildCodeTable(d.headers, d.rows, chars);
+  navigator.clipboard.writeText(text).then(() => {
+    alert('📋 ' + name + ' copied!');
+  }).catch(() => alert('❌ Copy failed'));
+}
+
 // --- helpers for code-block exports ---
 function getData() {
   const raw = TEXTAREA.value;
@@ -575,47 +619,7 @@ function exportSVG() {
   downloadText(svg, 'table_' + currentStyle + '.svg');
 }
 
-function exportGrid() {
-  const d = getData();
-  if (!d) { alert('No data'); return; }
-  const text = buildCodeTable(d.headers, d.rows, {
-    tl:'+', tm:'+', tr:'+',
-    ml:'+', mm:'+', mr:'+',
-    bl:'+', bm:'+', br:'+',
-    h:'-', v:'|'
-  });
-  downloadText(text, 'table_grid.txt');
-}
-
-function exportBox() {
-  const d = getData();
-  if (!d) { alert('No data'); return; }
-  const text = buildCodeTable(d.headers, d.rows, {
-    tl:'┌', tm:'┬', tr:'┐',
-    ml:'├', mm:'┼', mr:'┤',
-    bl:'└', bm:'┴', br:'┘',
-    h:'─', v:'│'
-  });
-  downloadText(text, 'table_box.txt');
-}
-
-function exportPipe() {
-  const d = getData();
-  if (!d) { alert('No data'); return; }
-  const colW = d.headers.map((h, ci) => {
-    let max = dw(h);
-    for (const r of d.rows) if (dw(r[ci]) > max) max = dw(r[ci]);
-    return max;
-  });
-  let out = '| ' + d.headers.map((h, i) => h.padEnd(colW[i])).join(' | ') + ' |\n';
-  out += '|-' + colW.map(w => '-'.repeat(w)).join('-|-') + '-|\n';
-  for (const row of d.rows) {
-    out += '| ' + row.map((c, i) => String(c).padEnd(colW[i])).join(' | ') + ' |\n';
-  }
-  downloadText(out, 'table_pipe.md');
-}
-
-// Load default example
+// --- helpers for code-block exports ---
 render();
 </script>
 </body>
