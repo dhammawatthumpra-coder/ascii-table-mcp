@@ -44,7 +44,7 @@ dependencies = [
 requires-dist = [
     { name = "mcp", specifier = ">=1.0.0" },
     { name = "pillow", specifier = ">=10.0.0" },
-    { name = "playwright", specifier = ">=1.60.0" },
+    { name = "playwright", specifier = ">=1.40.0" },
     { name = "wcwidth", specifier = ">=0.2.0" },
 ]
 
