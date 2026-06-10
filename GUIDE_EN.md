@@ -49,7 +49,7 @@ Then open the HTML in a browser and screenshot it.
   "rows": [
     ["กมฺม", "kamma", "Noun", "action"],
     ["ญาณ", "ñāṇa", "Wisdom", "direct knowing"],
-    ["ก๋วยเตี๋ยว", "thai", "Food", "noodle soup"]
+    ["ก๋วยเตี๋ยว", "kuaytiaw", "Food", "noodle soup"]
   ],
   "fmt": "html",
   "style": "dark"

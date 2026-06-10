@@ -59,7 +59,7 @@ For Discord, Telegram, Slack, or any place that can't render a proper monospace 
   "rows": [
     ["กมฺม", "kamma", "Noun", "action"],
     ["ญาณ", "ñāṇa", "Wisdom", "direct knowing"],
-    ["ก๋วยเตี๋ยว", "thai", "Food", "noodle soup"]
+    ["ก๋วยเตี๋ยว", "kuaytiaw", "Food", "noodle soup"]
   ],
   "fmt": "html",
   "style": "dark"
