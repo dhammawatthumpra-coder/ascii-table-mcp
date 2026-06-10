@@ -454,13 +454,11 @@ async function downloadPNG() {
   try {
     const bg = (currentStyle === 'light' || currentStyle === 'minimal') ? '#ffffff' : '#1e1e2e';
 
-    // Temporarily remove scale transform so we capture at full resolution
+    // Remove scale transform so we capture at full resolution
     const origTransform = TABLE_WRAP.style.transform;
     const origHeight = TABLE_WRAP.style.height;
     TABLE_WRAP.style.transform = '';
     TABLE_WRAP.style.height = '';
-
-    // Wait a frame for layout to settle
     await new Promise(r => requestAnimationFrame(r));
 
     const canvas = await html2canvas(table, {
@@ -474,48 +472,19 @@ async function downloadPNG() {
     TABLE_WRAP.style.transform = origTransform;
     TABLE_WRAP.style.height = origHeight;
 
-    // Auto-crop: scan for non-background pixels
-    const ctx = canvas.getContext('2d');
-    const { data, width: cw, height: ch } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const bgThreshold = (currentStyle === 'light' || currentStyle === 'minimal') ? 230 : 40;
-    const bgDark = bg === '#1e1e2e';
-
-    let top = ch, bottom = 0, left = cw, right = 0;
-    for (let y = 0; y < ch; y++) {
-      for (let x = 0; x < cw; x++) {
-        const idx = (y * cw + x) * 4;
-        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-        const isBg = bgDark
-          ? (r < bgThreshold && g < bgThreshold && b < bgThreshold + 10)
-          : (r > bgThreshold && g > bgThreshold && b > bgThreshold);
-        if (!isBg) {
-          if (y < top) top = y;
-          if (y > bottom) bottom = y;
-          if (x < left) left = x;
-          if (x > right) right = x;
-        }
-      }
-    }
-
-    // Fallback if nothing found (all-bg canvas)
-    if (left > right) { left = 0; right = cw - 1; top = 0; bottom = ch - 1; }
-
-    // Add small padding
-    const pad = 10;
-    left = Math.max(0, left - pad);
-    top = Math.max(0, top - pad * 2);
-    right = Math.min(cw - 1, right + pad);
-    bottom = Math.min(ch - 1, bottom + pad);
-
-    // Crop + download
-    const cropped = document.createElement('canvas');
-    cropped.width = right - left + 1;
-    cropped.height = bottom - top + 1;
-    cropped.getContext('2d').drawImage(canvas, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+    // Add symmetrical padding (เท่ากันทุกด้าน)
+    const pad = 16;
+    const padded = document.createElement('canvas');
+    padded.width = canvas.width + pad * 2;
+    padded.height = canvas.height + pad * 2;
+    const ctx = padded.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, padded.width, padded.height);
+    ctx.drawImage(canvas, pad, pad);
 
     const link = document.createElement('a');
     link.download = 'table_' + currentStyle + '.png';
-    link.href = cropped.toDataURL('image/png');
+    link.href = padded.toDataURL('image/png');
     link.click();
   } catch (err) {
     alert('PNG error: ' + err.message);
