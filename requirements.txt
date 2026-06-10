@@ -1,2 +1,3 @@
 mcp>=1.0.0
 wcwidth>=0.2.0
+Pillow>=10.0.0  # table_to_image.py (screenshot cropping)
