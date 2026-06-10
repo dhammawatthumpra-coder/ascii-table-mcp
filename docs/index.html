@@ -422,12 +422,12 @@ async function downloadPNG() {
   const table = TABLE_WRAP.querySelector('table');
   if (!table || !table.rows.length) return;
 
-  const btn = document.querySelector('.btn-primary');
-  btn.textContent = '⏳ Rendering...';
+  const btn = document.querySelector('.tool-btn.primary');
+  const origText = btn.textContent;
+  btn.textContent = '⏳...';
   btn.disabled = true;
 
   try {
-    // Get the bg color
     const bg = currentStyle === 'light' ? '#ffffff' : '#1e1e2e';
 
     const canvas = await html2canvas(table, {
@@ -455,10 +455,10 @@ async function downloadPNG() {
     link.href = padded.toDataURL('image/png');
     link.click();
   } catch (err) {
-    alert('Error: ' + err.message);
+    alert('PNG error: ' + err.message);
   }
 
-  btn.textContent = '⬇ Download PNG';
+  btn.textContent = origText;
   btn.disabled = false;
 }
 
