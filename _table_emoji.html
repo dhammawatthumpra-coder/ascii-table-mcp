@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&family=Noto+Color+Emoji&display=swap');
+body {
+  background: #1e1e2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 30px;
+}
+table {
+  border-collapse: collapse;
+  font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
+  font-size: 22px;
+  color: #cdd6f4;
+}
+th, td {
+  border: 2px solid #45475a;
+  padding: 10px 20px;
+  text-align: left;
+  white-space: nowrap;
+}
+th { background: #313244; font-weight: 700; }
+td { background: #1e1e2e; }
+</style>
+</head>
+<body>
+<table>
+  <tr>
+    <th>📄 ไฟล์</th>
+    <th>🔄 การเปลี่ยนแปลง</th>
+    <th>💡 หมายเหตุ</th>
+  </tr>
+  <tr>
+    <td>README.md</td>
+    <td>📝 ภาษาไทย → อังกฤษ</td>
+    <td>มีรูปตัวอย่าง 🖼️</td>
+  </tr>
+  <tr>
+    <td>README_TH.md</td>
+    <td>✨ ใหม่ (อันเก่า)</td>
+    <td>ภาษาไทย intact</td>
+  </tr>
+  <tr>
+    <td>GUIDE.md → GUIDE_TH.md</td>
+    <td>🔄 rename</td>
+    <td>🔧 แก้ local path</td>
+  </tr>
+  <tr>
+    <td>GUIDE_EN.md</td>
+    <td>➕ ใหม่</td>
+    <td>ภาษาอังกฤษ</td>
+  </tr>
+  <tr>
+    <td>generate_table.py</td>
+    <td>🔧 FONT_CACHE</td>
+    <td>hardcode → relative</td>
+  </tr>
+  <tr>
+    <td>requirements.txt</td>
+    <td>➕ Pillow</td>
+    <td>screenshot crop</td>
+  </tr>
+</table>
+</body>
+</html>
