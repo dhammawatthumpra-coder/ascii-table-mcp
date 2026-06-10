@@ -20,14 +20,8 @@ body {
 h1 { margin: 20px 0 8px; font-size: 28px; letter-spacing: -0.5px; }
 .sub { color: #6c7086; margin-bottom: 24px; font-size: 14px; }
 .container {
-  max-width: 1000px;
+  max-width: 900px;
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-@media (max-width: 700px) {
-  .container { grid-template-columns: 1fr; }
 }
 
 /* Input panel */
@@ -97,6 +91,7 @@ textarea:focus { border-color: #89b4fa; }
   border: 1px solid #313244;
   border-radius: 12px;
   padding: 20px;
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
 }
