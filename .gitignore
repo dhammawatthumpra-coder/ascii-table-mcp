@@ -19,4 +19,6 @@ gen_ratios.py
 
 # temp HTML renders
 _table_render_*.html
+_table_export_*.png
+_table_export_*.svg
 NotoSansThai_VF.ttf

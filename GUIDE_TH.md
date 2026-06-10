@@ -1,10 +1,10 @@
 # คู่มือการใช้งาน ASCII Table MCP
 
-เครื่องมือสร้างตารางที่รองรับภาษาไทย บาลี และ CJK — ใช้ได้ทั้งแบบ Code Block และ HTML Image
+เครื่องมือสร้างตารางที่รองรับภาษาไทย บาลี และ CJK — ใช้ได้ทั้งแบบ Code Block, PNG Image, และ SVG Vector
 
 ---
 
-## แบบที่ 1: Code Block (สำหรับ Terminal / GitHub)
+## แบบที่ 1: Code Block (สำหรับ Terminal / GitHub / Discord)
 
 ใช้ `fmt="grid"` กับ `safe_width=True`:
 
@@ -31,19 +31,13 @@
 +----------+-------+---------+---------------+
 ```
 
-**หมายเหตุ:** Code block ใช้ได้ดีบน GitHub, terminal, และ platform ที่มี monospace font รองรับภาษาไทย  
-บน Discord/Telegram Windows ภาษาไทยอาจดูโย้เพราะไม่มี monospace font ไทย — ใช้ **แบบที่ 2** แทน
+**หมายเหตุ:** Code block บน Discord Windows อาจดูโย้เพราะไม่มี monospace font ไทย — ใช้ **แบบที่ 2** แทน
 
 ---
 
-## แบบที่ 2: HTML + Screenshot (สำหรับ Discord / Telegram)
+## แบบที่ 2: Export PNG โดยตรง (ส่งเข้าฟีดทันที)
 
-ใช้ `fmt="html"` เพื่อสร้างตารางด้วย Noto Sans Thai (Google Fonts) ที่ดูสวยงามทุก platform  
-จากนั้น screenshot เป็นภาพ ส่งเป็น attachment
-
-**ขั้นตอน:**
-
-### 1. สร้าง HTML
+ใช้ `export_png` — สร้าง PNG crop อัตโนมัติ ไม่ต้องเปิด browser หรือ crop เอง
 
 ```json
 {
@@ -53,39 +47,36 @@
     ["ญาณ", "ñāṇa", "ปัญญา", "ความรู้แจ้ง"],
     ["ก๋วยเตี๋ยว", "kuaytiaw", "อาหาร", "noodle soup"]
   ],
-  "fmt": "html",
   "style": "dark"
 }
 ```
 
-### 2. เปิดใน Browser
+MCP คืน path ไฟล์ PNG — ส่งด้วย `MEDIA:<path>` ได้ทันที
 
-```python
-browser_navigate(url='file:///path/to/ascii-table-mcp/_table_render_dark.html')
+**4 styles:**
+
+| style | ลักษณะ |
+|-------|--------|
+| `dark` (default) | พื้นหลังดำ, ตัวอักษรขาว |
+| `light` | พื้นหลังขาว, ตัวอักษรดำ |
+| `minimal` | กรอบบาง, โปร่งใส |
+| `compact` | แบบกระชับ, padding น้อย |
+
+---
+
+## แบบที่ 3: Export SVG (Vector — ซูมได้, Embed ได้)
+
+ใช้ `export_svg` — SVG ใช้ foreignObject + Noto Sans Thai
+
+```json
+{
+  "headers": ["คำบาลี", "Roman"],
+  "rows": [["กมฺม", "kamma"], ["อวิชฺชา", "avijjā"]],
+  "style": "dark"
+}
 ```
 
-### 3. Screenshot
-
-```python
-browser_vision(question='verify')
-```
-→ จะได้ screenshot path (ถึง vision ล่ม ไฟล์ก็ถูกบันทึก)
-
-### 4. Crop (trim พื้นหลัง)
-
-```python
-from PIL import Image
-img = Image.open(screenshot_path)
-bg = (30, 30, 46)  # หรือ (255,255,255) ถ้า style=light
-# crop อัตโนมัติ
-img.crop((left, top, right, bottom)).save('table.png')
-```
-
-### 5. ส่งเป็นภาพ
-
-```
-MEDIA:table.png
-```
+SVG คมชัดทุกขนาด (ซูมเท่าไรก็ไม่แตก), embed ในเว็บหรือเอกสาร PDF ได้
 
 ---
 

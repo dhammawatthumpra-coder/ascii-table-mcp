@@ -23,13 +23,14 @@ MCP server สำหรับสร้างตาราง (ASCII grid / Unicod
 
 ## Features
 
-- **5 table formats**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`), `safe` (char-count padding), `html` (HTML file with Noto Sans Thai)
+- **9 table formats**: `grid` (ASCII `+---+`), `box` (Unicode `┌─┬─┐`), `pipe` (Markdown `| | |`), `safe` (char-count padding), `html` (HTML file with Noto Sans Thai), `png` (export PNG), `svg` (export SVG)
 - **10 grid sub-styles**: `mysql`, `separated`, `compact`, `gfm`, `reddit`, `rounded`, `rst`, `box`, `unicode`, `dots`
 - **Auto-format**: รองรับตัวเลข (right-align) และหัวตาราง (center) — ได้แรงบันดาลใจจาก [ozh/ascii-tables](https://github.com/ozh/ascii-tables)
 - **Thai/Pali/CJK**: zero-width combining marks (พินทุ, สระบน/ล่าง) alignment ไม่เพี้ยน
 - **Safe width mode**: extra padding ชดเชย platform ที่ zero-width ≠ 0 (Discord, browser code blocks)
-- **7 MCP tools**: `make_table`, `make_table_from_csv`, `make_table_from_json`, `make_table_preview`, `debug_table`, `analyze_table`, `validate_table_text`
-- **Zero external dependencies** (beyond `mcp` + `wcwidth`)
+- **ส่งออก PNG โดยตรง**: Playwright headless browser → HTML → crop PNG อัตโนมัติ — พร้อมส่ง Discord/Telegram
+- **ส่งออก SVG โดยตรง**: vector SVG (foreignObject) — ซูมได้, embed ได้
+- **9 MCP tools**: `make_table`, `make_table_from_csv`, `make_table_from_json`, `make_table_preview`, `debug_table`, `analyze_table`, `validate_table_text`, `export_png`, `export_svg`
 
 ---
 
@@ -191,6 +192,25 @@ hermes mcp add ascii-table --command "python -m ascii_table_mcp"
 
 วิเคราะห์ column positions ของ `+--+` table และ validate `|` alignment
 
+### `export_png`
+
+ส่งออกตารางเป็น PNG crop อัตโนมัติ — ไม่ต้องเปิด browser, ไม่ต้อง screenshot เอง
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `headers` | `list[str]` | — | หัวตาราง |
+| `rows` / `data` | `list[list[str]]` | — | แถวข้อมูล |
+| `style` | `str` | `"dark"` | `"dark"`, `"light"`, `"minimal"`, `"compact"` |
+| `font_size` | `int` | `24` | ขนาดตัวอักษร (px) |
+
+→ คืน path ของ PNG ที่ crop เฉพาะตาราง
+
+### `export_svg`
+
+ส่งออกตารางเป็น SVG vector (foreignObject + HTML)
+
+Parameter เหมือน `export_png` — คืน path ของ `.svg`
+
 ### `validate_table_text`
 
 ตรวจสอบโครงสร้างตาราง: column count, border alternation, format detection
@@ -276,35 +296,40 @@ wcswidth("กมฺม") → 3  ✅ (พินทุ width 0)
 
 ---
 
-## HTML Table for Discord/Telegram (fmt="html")
+## ส่งออก PNG โดยตรง (export_png)
 
-Discord และ Telegram **ไม่มี monospace font ที่รองรับภาษาไทยบน Windows** — ทำให้ `|` และ `│` ใน code block ดูโย้ไม่ตรงกัน
-
-**วิธีแก้:** ใช้ `fmt="html"` เพื่อสร้าง HTML table ที่ browser จัด alignment ให้อัตโนมัติ แล้ว screenshot ส่งเป็นภาพ
-
-![Dark](examples/ex_dark.png)
-
-*ตัวอย่าง: `fmt="html"` style=dark (ค่าเริ่มต้น)*
-
-4 styles ให้เลือก:
+ไม่ต้องเปิด browser, ไม่ต้อง crop เอง — ใช้ `export_png` tool สร้าง PNG crop อัตโนมัติ
 
 | Style | Preview | เหมาะกับ |
 |-------|---------|---------|
 | `dark` | ![dark](examples/ex_dark.png) | Discord/Telegram dark mode |
 | `light` | ![light](examples/ex_light.png) | Document, PDF |
 | `minimal` | ![minimal](examples/ex_minimal.png) | Blog, website |
-| `compact` | ![compact](examples/ex_compact.png) | เนื้อหาเย็น, จอแคบ |
-
-**การเรียกใช้:**
+| `compact` | ![compact](examples/ex_compact.png) | เนื้อหาเยอะ, จอแคบ |
 
 ```json
 {
   "headers": ["คำบาลี", "Roman", "หมวด", "ความหมาย"],
   "rows": [["กมฺม", "kamma", "นาม", "กรรม"]],
-  "fmt": "html",
   "style": "dark"
 }
 ```
+
+→ ได้ไฟล์ PNG crop เฉพาะตาราง ส่งด้วย `MEDIA:<path>` ใน Discord/Telegram
+
+## ส่งออก SVG โดยตรง (export_svg)
+
+ใช้ `export_svg` สำหรับภาพ vector ที่ซูมได้, embed ได้:
+
+```json
+{
+  "headers": ["คำบาลี", "Roman"],
+  "rows": [["กมฺม", "kamma"]],
+  "style": "dark"
+}
+```
+
+SVG ใช้ foreignObject + Noto Sans Thai — คมชัดทุกขนาดจอ
 
 ---
 

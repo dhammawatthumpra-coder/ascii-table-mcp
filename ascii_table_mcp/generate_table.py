@@ -995,5 +995,188 @@ td {{ background: {theme['td_bg']}; }}
     return {"path": os.path.abspath(out_path), "html": html}
 
 
+# ─── PNG Export (Playwright) ─────────────────────────────────────────
+
+def render_table_png(rows, style="dark", font_size=24):
+    """Render table as cropped PNG using Playwright headless browser.
+
+    Generates HTML first, then uses headless Chromium to screenshot
+    just the table element — auto-cropped, no background padding.
+
+    Args:
+        rows: list of lists (first row = headers)
+        style: "dark" (default), "light", "minimal", "compact"
+        font_size: font size in px (default: 24)
+
+    Returns:
+        dict with 'path' (absolute PNG path)
+    """
+    import os, shutil
+    from playwright.sync_api import sync_playwright
+
+    base_dir = os.path.join(os.path.dirname(__file__), os.pardir)
+    font_path = os.path.join(base_dir, "NotoSansThai_VF.ttf")
+    html_result = render_html_table(rows, style=style)
+    html_path = html_result["path"]
+
+    # คัดลอก font ไปที่เดียวกับ HTML ถ้ายังไม่มี
+    font_dir = os.path.dirname(html_path)
+    local_font = os.path.join(font_dir, "NotoSansThai_VF.ttf")
+    if os.path.exists(font_path) and not os.path.exists(local_font):
+        shutil.copy2(font_path, local_font)
+
+    png_path = os.path.join(base_dir, f"_table_export_{style}.png")
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page(viewport={"width": 1920, "height": 1080})
+        page.goto(f"file:///{html_path.replace(os.sep, '/')}")
+        page.wait_for_load_state("networkidle")
+        # Font loading
+        page.wait_for_timeout(500)
+        table = page.query_selector("table")
+        if table:
+            table.screenshot(path=png_path)
+        else:
+            page.screenshot(path=png_path, full_page=True)
+        browser.close()
+
+    return {"path": os.path.abspath(png_path)}
+
+
+# ─── SVG Export ──────────────────────────────────────────────────────
+
+SVG_STYLES = {
+    "dark": {
+        "body_bg": "#1e1e2e",
+        "th_bg": "#313244",
+        "td_bg": "#1e1e2e",
+        "border": "#45475a",
+        "text": "#cdd6f4",
+        "desc": "Catppuccin dark",
+    },
+    "light": {
+        "body_bg": "#ffffff",
+        "th_bg": "#e6e9ef",
+        "td_bg": "#ffffff",
+        "border": "#dce0e8",
+        "text": "#4c4f69",
+        "desc": "Catppuccin light",
+    },
+    "minimal": {
+        "body_bg": "transparent",
+        "th_bg": "#eff1f5",
+        "td_bg": "transparent",
+        "border": "#ccd0da",
+        "text": "#4c4f69",
+        "desc": "Minimal",
+    },
+    "compact": {
+        "body_bg": "#1e1e2e",
+        "th_bg": "#313244",
+        "td_bg": "#1e1e2e",
+        "border": "#45475a",
+        "text": "#cdd6f4",
+        "desc": "Compact dark",
+    },
+}
+
+
+def render_table_svg(rows, style="dark", font_size=24, pad_h=16, pad_v=10):
+    """Render table as inline SVG with embedded HTML (foreignObject).
+
+    Uses foreignObject to embed styled HTML <table> inside SVG —
+    gives proper Thai/Pali rendering with Noto Sans Thai without
+    needing a browser or font rasterization.
+
+    Args:
+        rows: list of lists (first row = headers)
+        style: "dark" (default), "light", "minimal", "compact"
+        font_size: font size in px (default: 24)
+        pad_h: horizontal cell padding in px (default: 16)
+        pad_v: vertical cell padding in px (default: 10)
+
+    Returns:
+        dict with 'path' (absolute SVG path) and 'svg' (SVG string)
+    """
+    import os, shutil, textwrap
+
+    theme = SVG_STYLES.get(style, SVG_STYLES["dark"])
+    base_dir = os.path.join(os.path.dirname(__file__), os.pardir)
+
+    # Estimate table pixel dimensions from character widths
+    col_count = max(len(r) for r in rows) if rows else 0
+    normalised = [r + [''] * (col_count - len(r)) for r in rows] if rows else []
+    widths = get_column_widths(normalised, col_count) if normalised else []
+
+    # Approx pixel width per character: ~0.62 * font_size (for Noto Sans Thai)
+    cw = font_size * 0.62
+    rh = font_size + pad_v * 2  # row height
+
+    col_px = [int(w * cw) + pad_h * 2 for w in widths]
+    total_w = sum(col_px)
+    total_h = len(normalised) * rh + 1
+
+    # Build rows as HTML for foreignObject
+    ESC_TR = str.maketrans({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})
+    def esc(s):
+        return str(s).translate(ESC_TR)
+
+    def rows_to_html(rows):
+        parts = []
+        for i, row in enumerate(rows):
+            tag = 'th' if i == 0 else 'td'
+            cells = ''.join(f'<{tag}>{esc(c)}</{tag}>' for c in row)
+            parts.append(f'  <tr>{cells}</tr>')
+        return '\n'.join(parts)
+
+    # คัดลอก font ไปที่เดียวกับ SVG
+    font_path = os.path.join(base_dir, "NotoSansThai_VF.ttf")
+    font_dest = os.path.join(base_dir, "NotoSansThai_VF.ttf")
+
+    if os.path.exists(font_path) and not os.path.exists(font_dest):
+        shutil.copy2(font_path, font_dest)
+
+    font_url = 'NotoSansThai_VF.ttf'
+    fmt_pad = f"{pad_h}px {pad_h}px"
+    if style == "compact":
+        fmt_pad = f"4px 12px"
+
+    html_content = f'''<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<style>
+@font-face {{ font-family: "Noto Sans Thai"; src: url("{font_url}"); }}
+body {{ background: {theme['body_bg']}; margin: 0; display: flex; }}
+table {{ border-collapse: collapse; font-family: "Noto Sans Thai", sans-serif; font-size: {font_size}px; color: {theme['text']}; }}
+th, td {{ border: 2px solid {theme['border']}; padding: {fmt_pad}; text-align: left; white-space: nowrap; }}
+th {{ background: {theme['th_bg']}; font-weight: 700; }}
+td {{ background: {theme['td_bg']}; }}
+</style>
+</head>
+<body>
+<table>
+{rows_to_html(normalised)}
+</table>
+</body>
+</html>'''
+
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{total_w + 4}" height="{total_h + 4}" viewBox="0 0 {total_w + 4} {total_h + 4}">
+  <rect width="100%" height="100%" fill="{theme['body_bg']}" rx="8"/>
+  <foreignObject x="2" y="2" width="{total_w}" height="{total_h}">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+{textwrap.indent(html_content, '      ')}
+    </div>
+  </foreignObject>
+</svg>'''
+
+    out_path = os.path.join(base_dir, f"_table_export_{style}.svg")
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(svg)
+    return {"path": os.path.abspath(out_path), "svg": svg}
+
+
 if __name__ == '__main__':
     pass

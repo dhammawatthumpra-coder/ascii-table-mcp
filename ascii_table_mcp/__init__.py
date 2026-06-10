@@ -9,6 +9,8 @@ Tools:
   - analyze_table:         Analyze column positions in grid tables
   - validate_table_text:   Validate table structural integrity
   - debug_table:           Render table with position diagnostics
+  - export_png:            Render table as cropped PNG using Playwright
+  - export_svg:            Render table as SVG with embedded HTML (foreignObject)
 """
 
 import sys
@@ -24,6 +26,8 @@ from ascii_table_mcp.generate_table import (
     render_ascii_grid,
     render_minimal_table,
     render_html_table,
+    render_table_png,
+    render_table_svg,
     analyze_grid_table,
     validate_table,
     detect_format,
@@ -291,6 +295,83 @@ def debug_table(
         return "(no data provided)"
     all_rows = [headers] + r if headers else r
     return render_table_debug(all_rows)
+
+
+@server.tool()
+def export_png(
+    headers: list[str] | None = None,
+    rows: list[list[str]] | None = None,
+    data: list[list[str]] | None = None,
+    style: str = "dark",
+    font_size: int = 24,
+) -> str:
+    """Render table as cropped PNG using Playwright headless browser.
+
+    Auto-crops to just the table element — no extra padding or background.
+    Uses Noto Sans Thai for proper Thai/Pali rendering.
+
+    Args:
+        headers: Optional list of column header strings
+        rows: List of data rows, each a list of strings
+        data: Alias for rows (cannot use both)
+        style: "dark" (default), "light", "minimal", "compact"
+        font_size: Font size in px (default: 24)
+
+    Returns:
+        Path to the cropped PNG file.
+    """
+    r = rows if rows is not None else (data if data is not None else [])
+    if not r:
+        return "(no data provided)"
+    all_rows = [headers] + r if headers else r
+    result = render_table_png(all_rows, style=style, font_size=font_size)
+    path = result["path"]
+    url_path = path.replace("\\", "/")
+    return (
+        f"✅ PNG exported: {path}\n"
+        f"(cropped to table only)\n"
+        f"Send with:  MEDIA:{path}\n"
+        f"Or open in browser:\n"
+        f"  file:///{url_path}"
+    )
+
+
+@server.tool()
+def export_svg(
+    headers: list[str] | None = None,
+    rows: list[list[str]] | None = None,
+    data: list[list[str]] | None = None,
+    style: str = "dark",
+    font_size: int = 24,
+) -> str:
+    """Render table as SVG with embedded HTML table (foreignObject).
+
+    Uses Noto Sans Thai — renders properly in any browser.
+    SVG = vector format, zoomable, embeddable.
+
+    Args:
+        headers: Optional list of column header strings
+        rows: List of data rows, each a list of strings
+        data: Alias for rows (cannot use both)
+        style: "dark" (default), "light", "minimal", "compact"
+        font_size: Font size in px (default: 24)
+
+    Returns:
+        Path to the SVG file.
+    """
+    r = rows if rows is not None else (data if data is not None else [])
+    if not r:
+        return "(no data provided)"
+    all_rows = [headers] + r if headers else r
+    result = render_table_svg(all_rows, style=style, font_size=font_size)
+    path = result["path"]
+    url_path = path.replace("\\", "/")
+    return (
+        f"✅ SVG exported: {path}\n"
+        f"(vector — zoomable, embeddable)\n"
+        f"Open in browser:\n"
+        f"  file:///{url_path}"
+    )
 
 
 def main():

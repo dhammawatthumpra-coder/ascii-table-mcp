@@ -29,22 +29,22 @@
 
 ## Features
 
-- **7 table formats**: `grid` (`+--+`), `box` (`┌─┬─┐`), `pipe` (`| | |`), `safe`, `html`, and more
+- **9 table formats**: `grid` (`+--+`), `box` (`┌─┬─┐`), `pipe` (`| | |`), `safe`, `html`, `png`, `svg` + more
 - **10 grid sub-styles**: `mysql`, `separated`, `compact`, `gfm`, `reddit`, `rounded`, `rst`, `box`, `unicode`, `dots` — inspired by [ozh/ascii-tables](https://github.com/ozh/ascii-tables)
 - **Auto-format**: auto-detects numeric columns (right-align) and centers headers
 - **Thai / Pali / CJK / emoji**: zero-width combining marks (ิ, ี, ฺ, ◌̱, etc.) align perfectly
 - **Safe width mode**: extra padding for platforms where zero-width marks ≠ zero (Discord, browser code blocks)
-- **HTML image mode**: renders tables with Noto Sans Thai as beautiful PNG screenshots — perfect for chat apps
+- **Direct PNG export**: headless Playwright renders styled HTML → cropped PNG with Noto Sans Thai — perfect for Discord/Telegram
+- **Direct SVG export**: vector SVG with embedded HTML (foreignObject) — zoomable, embeddable
 - **4 polished HTML styles**: `dark`, `light`, `minimal`, `compact`
 - **CSV / TSV / JSON input**: convert from any data source
 - **Debug tools**: `analyze_table`, `debug_table`, `validate_table_text` — find and fix alignment issues
-- **Zero heavy dependencies** (only `mcp` + `wcwidth`)
 
 ---
 
-## HTML Image Mode — Tables That Look This Good
+## Direct PNG Export — One Step to a Gorgeous Table Image
 
-For Discord, Telegram, Slack, or any place that can't render a proper monospace Thai table, use `fmt="html"` to generate a pixel-perfect screenshot instead.
+For Discord, Telegram, Slack, or any place that can't render a proper monospace Thai table, use `export_png` to generate a **cropped PNG** directly — no browser, no manual screenshot, no crop step.
 
 | Style | Preview | Best for |
 |-------|---------|----------|
@@ -58,15 +58,31 @@ For Discord, Telegram, Slack, or any place that can't render a proper monospace 
   "headers": ["Pali", "Roman", "Type", "Meaning"],
   "rows": [
     ["กมฺม", "kamma", "Noun", "action"],
-    ["ญาณ", "ñāṇa", "Wisdom", "direct knowing"],
-    ["ก๋วยเตี๋ยว", "kuaytiaw", "Food", "noodle soup"]
+    ["ญาณ", "ñāṇa", "Wisdom", "direct knowing"]
   ],
-  "fmt": "html",
   "style": "dark"
 }
 ```
 
-→ Opens in browser → crop → paste as image. Simple, beautiful, cross-platform.
+Output: a `.png` file cropped to just the table — send it with `MEDIA:<path>` in Discord/Telegram.
+
+## Direct SVG Export — Vector That Scales
+
+Use `export_svg` for images that need to be zoomed, embedded, or edited.
+
+```json
+{
+  "headers": ["Term", "Translation"],
+  "rows": [["กมฺม", "Kamma"], ["ธมฺม", "Dhamma"]],
+  "style": "dark"
+}
+```
+
+SVG is HTML-backed (foreignObject) with Noto Sans Thai — renders sharp at any size.
+
+---
+
+## Supported Formats
 
 ---
 
@@ -166,6 +182,32 @@ Notice: `auto_format=true` right-aligns `Price` and `Qty` columns, centers heade
 }
 ```
 
+### `export_png` — Direct PNG export
+
+Render table as cropped PNG via headless Playwright.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `headers` | `list[str]` | — | Column headers |
+| `rows` / `data` | `list[list[str]]` | — | Data rows |
+| `style` | `str` | `\"dark\"` | `\"dark\"`, `\"light\"`, `\"minimal\"`, `\"compact\"` |
+| `font_size` | `int` | `24` | Font size in px |
+
+```json
+{
+  "headers": ["คำบาลี", "Roman"],
+  "rows": [["กมฺม", "kamma"], ["ธมฺม", "dhamma"]],
+  "style": "dark"
+}
+```
+→ Returns file path to cropped PNG. Send with `MEDIA:<path>`.
+
+### `export_svg` — Direct SVG export
+
+Render table as vector SVG (foreignObject with styled HTML).
+
+Same parameters as `export_png`. Returns file path to `.svg`.
+
 ### Debug tools
 
 - **`debug_table`** — shows exact char positions with drift analysis
@@ -244,7 +286,8 @@ Without `safe_width` (discord will misalign):
 | `box` / `safe` | `┌────┬────┐` | Presentation, formal docs |
 | `pipe` | `\| \| \|` | Markdown-native |
 | `grid` + `safe_width` | `+------+----+` | Discord, browser (zero-width ≠ 0) |
-| `html` | HTML `<table>` | Screenshot-as-image for chat apps |
+| `png` | `<image>` | Direct export — Discord/Telegram/chat apps |
+| `svg` | `<vector>` | Vector — zoomable, embeddable |
 
 ---
 
@@ -277,17 +320,20 @@ python -m ascii_table_mcp.generate_table --json '{"headers":["A","B"],"rows":[["
 ```text
 ascii-table-mcp/
 ├── ascii_table_mcp/
-│   ├── __init__.py       # MCP server entry (FastMCP)
-│   ├── generate_table.py # Core rendering engine + HTML
+│   ├── __init__.py       # MCP server entry (FastMCP) — 9 tools
+│   ├── generate_table.py # Core rendering engine + HTML + PNG + SVG
 │   └── thaiwidth.py      # Thai-aware display width
 ├── server.py             # Thin CLI wrapper
-├── table_to_image.py     # HTML → screenshot helper
+├── table_to_image.py     # HTML → screenshot helper (legacy)
+├── table_screenshot.py   # HTML generator (legacy)
 ├── requirements.txt      # mcp + wcwidth
 ├── pyproject.toml         # uv/pip packaging
 ├── ascii-table-mcp.bat   # Windows launcher
 ├── LICENSE               # MIT
 ├── README.md             # This file (English)
 ├── README_TH.md          # Thai documentation
+├── GUIDE_TH.md           # Thai user guide
+├── GUIDE_EN.md           # English user guide
 └── examples/
     ├── ex_dark.png
     ├── ex_light.png

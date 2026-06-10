@@ -31,17 +31,13 @@ Output:
 +----------+-------+---------+----------------+
 ```
 
-**Note:** Code blocks work well on GitHub, terminals, and platforms with proper monospace Thai fonts.  
-On Discord/Telegram (Windows), Thai monospace rendering is broken — use **Mode 2** instead.
+**Note:** Code blocks work well on GitHub, terminals, and platforms with proper monospace Thai fonts.  \nOn Discord/Telegram (Windows), Thai monospace rendering is broken — use **Mode 2** instead.
 
 ---
 
-## Mode 2: HTML Screenshot (Discord / Telegram / Slack)
+## Mode 2: Direct PNG Export (One Step)
 
-Use `fmt="html"` to render a table with Noto Sans Thai (perfect rendering everywhere).  
-Then open the HTML in a browser and screenshot it.
-
-### Step 1: Generate HTML
+Use `export_png` — generates cropped PNG via headless Playwright. No browser, no manual screenshot, no crop step.
 
 ```json
 {
@@ -51,70 +47,36 @@ Then open the HTML in a browser and screenshot it.
     ["ญาณ", "ñāṇa", "Wisdom", "direct knowing"],
     ["ก๋วยเตี๋ยว", "kuaytiaw", "Food", "noodle soup"]
   ],
-  "fmt": "html",
   "style": "dark"
 }
 ```
 
-### Step 2: Open in Browser
+Returns: path to cropped PNG file. Send with `MEDIA:<path>`.
 
-```python
-# The MCP server prints the file path — use it here:
-browser_navigate(url='file:///path/to/ascii-table-mcp/_table_render_dark.html')
+**4 styles:**
+
+| style | Appearance |
+|-------|-----------|
+| `dark` (default) | Dark background, white text |
+| `light` | Light background, dark text |
+| `minimal` | Thin borders, transparent |
+| `compact` | Small padding, dense |
+
+---
+
+## Mode 3: SVG Export (Vector — Zoomable, Embeddable)
+
+Use `export_svg` for vector output. Uses foreignObject + Noto Sans Thai.
+
+```json
+{
+  "headers": ["Pali", "Roman"],
+  "rows": [["กมฺม", "kamma"], ["อวิชฺชา", "avijjā"]],
+  "style": "dark"
+}
 ```
 
-Or just open the generated `.html` file manually in your browser.
-
-### Step 3: Screenshot
-
-```python
-browser_vision(question='verify')
-```
-
-→ Returns a screenshot path (even if vision analysis fails, the screenshot is saved).
-
-### Step 4: Crop (trim background)
-
-```python
-from PIL import Image
-
-img = Image.open(screenshot_path)
-bg = (30, 30, 46)       # dark theme background
-# or bg = (255, 255, 255) for light theme
-
-pixels = img.load()
-w, h = img.size
-left, right, top, bottom = w, 0, h, 0
-for y in range(h):
-    for x in range(w):
-        r, g, b = pixels[x, y][:3]
-        if (r, g, b) != bg:
-            if x < left:   left = x
-            if x > right:  right = x
-            if y < top:    top = y
-            if y > bottom: bottom = y
-
-pad = 10
-left   = max(0, left - pad)
-right  = min(w - 1, right + pad)
-top    = max(0, top - pad)
-bottom = min(h - 1, bottom + pad)
-
-cropped = img.crop((left, top, right + 1, bottom + 1))
-cropped.save('table.png')
-```
-
-Or use the included helper:
-
-```bash
-python table_to_image.py "Pali,Roman" "กมฺม,kamma"
-```
-
-### Step 5: Send as Image
-
-```
-MEDIA:table.png
-```
+SVG stays sharp at any zoom level, embeddable in web pages and PDFs.
 
 ---
 
