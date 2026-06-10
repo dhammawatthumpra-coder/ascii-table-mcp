@@ -206,7 +206,7 @@ textarea:focus { border-color: #89b4fa; }
 
   <!-- Input panel -->
   <div class="panel" style="padding: 12px 16px;">
-    <textarea id="csv-input" style="height:130px;font-size:12px;" placeholder="Accept any format: CSV, Markdown pipe, Grid (+--+), Box (┌─┬┐)
+    <textarea id="csv-input" style="height:130px;font-size:12px;margin-bottom:10px;" placeholder="Accept any format: CSV, Markdown pipe, Grid (+--+), Box (┌─┬┐)
 
 CSV:     คำบาลี,Roman
 Pipe:    | คำบาลี | Roman |
@@ -234,7 +234,7 @@ Box:     ┌────────┬───────┐"></textarea>
       <button class="tool-btn" onclick="exportBox()">┌─┬┐</button>
       <button class="tool-btn" onclick="exportPipe()">| |</button>
     </div>
-    <div class="toolbar" style="justify-content:flex-end;margin-top:2px;">
+    <div class="toolbar" style="justify-content:flex-end;margin-top:6px;">
       <button class="tool-btn" onclick="clearData()" style="color:#f38ba8;font-size:11px;padding:2px 8px;">✕ Clear</button>
       <button class="tool-btn" onclick="pasteData()" style="color:#a6e3a1;font-size:11px;padding:2px 8px;">📋 Paste</button>
     </div>
