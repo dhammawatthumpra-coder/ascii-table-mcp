@@ -160,16 +160,16 @@ textarea:focus { border-color: #89b4fa; }
 .minimal-theme table {
   border-collapse: collapse;
   font-family: 'Noto Sans Thai', 'Noto Color Emoji', sans-serif;
-  color: #cdd6f4;
+  color: #333;
 }
 .minimal-theme th, .minimal-theme td {
-  border: 1px solid #555;
-  padding: 10px 24px;
+  border: 1px solid #ddd;
+  padding: 8px 20px;
   text-align: left;
   white-space: nowrap;
 }
-.minimal-theme th { background: #2a2a3a; font-weight: 700; }
-.minimal-theme td { background: #1e1e2e; }
+.minimal-theme th { background: #fafafa; font-weight: 700; }
+.minimal-theme td { background: #ffffff; }
 
 /* Compact theme */
 .compact-theme table {
@@ -392,7 +392,7 @@ function applyStyle(style) {
     b.classList.toggle('active', b.dataset.style === style);
   });
   // Update preview bg
-  const bg = style === 'light' ? '#f5f5f5' : '#181825';
+  const bg = (style === 'light' || style === 'minimal') ? '#f5f5f5' : '#181825';
   PREVIEW_WRAP.style.background = bg;
   render();
   setTimeout(fitTable, 50);
@@ -452,7 +452,7 @@ async function downloadPNG() {
   btn.disabled = true;
 
   try {
-    const bg = currentStyle === 'light' ? '#ffffff' : '#1e1e2e';
+    const bg = (currentStyle === 'light' || currentStyle === 'minimal') ? '#ffffff' : '#1e1e2e';
 
     const canvas = await html2canvas(table, {
       scale: 2,
