@@ -937,7 +937,8 @@ def render_html_table(rows, style="dark"):
     theme = HTML_STYLES.get(style, HTML_STYLES["dark"])
     pad = "4px 12px" if style == "compact" else "10px 24px"
 
-    FONT_CACHE = r'C:\Users\csuti\AppData\Local\hermes\image_cache\NotoSansThai_VF.ttf'
+    # Look for local font next to the script, else fallback to CDN
+    FONT_CACHE = os.path.join(os.path.dirname(__file__), '..', 'NotoSansThai_VF.ttf')
     ESC_TR = str.maketrans({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})
 
     def esc(s):

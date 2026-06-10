@@ -61,7 +61,7 @@
 ### 2. เปิดใน Browser
 
 ```python
-browser_navigate(url='file:///F:/_Ai/ascii-table-mcp/_table_render_dark.html')
+browser_navigate(url='file:///path/to/ascii-table-mcp/_table_render_dark.html')
 ```
 
 ### 3. Screenshot
