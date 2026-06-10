@@ -1011,8 +1011,8 @@ def render_table_png(rows, style="dark", font_size=24):
     Returns:
         dict with 'path' (absolute PNG path)
     """
-    import os, shutil
-    from playwright.sync_api import sync_playwright
+    import os, shutil, asyncio
+    from playwright.async_api import async_playwright
 
     base_dir = os.path.join(os.path.dirname(__file__), os.pardir)
     font_path = os.path.join(base_dir, "NotoSansThai_VF.ttf")
@@ -1027,20 +1027,21 @@ def render_table_png(rows, style="dark", font_size=24):
 
     png_path = os.path.join(base_dir, f"_table_export_{style}.png")
 
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch()
-        page = browser.new_page(viewport={"width": 1920, "height": 1080})
-        page.goto(f"file:///{html_path.replace(os.sep, '/')}")
-        page.wait_for_load_state("networkidle")
-        # Font loading
-        page.wait_for_timeout(500)
-        table = page.query_selector("table")
-        if table:
-            table.screenshot(path=png_path)
-        else:
-            page.screenshot(path=png_path, full_page=True)
-        browser.close()
+    async def _screenshot():
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch()
+            page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+            await page.goto(f"file:///{html_path.replace(os.sep, '/')}")
+            await page.wait_for_load_state("networkidle")
+            await page.wait_for_timeout(500)
+            table = await page.query_selector("table")
+            if table:
+                await table.screenshot(path=png_path)
+            else:
+                await page.screenshot(path=png_path, full_page=True)
+            await browser.close()
 
+    asyncio.run(_screenshot())
     return {"path": os.path.abspath(png_path)}
 
 
