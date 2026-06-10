@@ -47,7 +47,7 @@ def _format_output(rows, fmt, style="mysql", auto_format=True, safe_width=False)
     elif fmt == "safe":
         return render_table_safe(rows)
     elif fmt == "html":
-        result = render_html_table(rows)
+        result = render_html_table(rows, style=style)
         url_path = result['path'].replace('\\', '/')
         return (f"HTML table saved to: {result['path']}\n"
                 f"Open in browser with:\n"

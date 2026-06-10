@@ -881,19 +881,61 @@ def main():
         print('```')
 
 
-def render_html_table(rows):
+# ─── HTML table styles ──────────────────────────────────────────────
+
+HTML_STYLES = {
+    "dark": {
+        "body_bg": "#1e1e2e",
+        "border": "2px solid #45475a",
+        "th_bg": "#313244",
+        "td_bg": "#1e1e2e",
+        "text": "#cdd6f4",
+        "desc": "Catppuccin dark — Discord/Telegram dark mode",
+    },
+    "light": {
+        "body_bg": "#ffffff",
+        "border": "2px solid #dce0e8",
+        "th_bg": "#e6e9ef",
+        "td_bg": "#ffffff",
+        "text": "#4c4f69",
+        "desc": "Catppuccin light — document, PDF",
+    },
+    "minimal": {
+        "body_bg": "transparent",
+        "border": "1px solid #ccd0da",
+        "th_bg": "#eff1f5",
+        "td_bg": "transparent",
+        "text": "#4c4f69",
+        "desc": "Head-only border — blog, website",
+    },
+    "compact": {
+        "body_bg": "#1e1e2e",
+        "border": "1px solid #45475a",
+        "th_bg": "#313244",
+        "td_bg": "#1e1e2e",
+        "text": "#cdd6f4",
+        "desc": "Dark + thin border + small padding",
+    },
+}
+
+
+def render_html_table(rows, style="dark"):
     """Render table as HTML file with Noto Sans Thai (local font).
 
     สำหรับ Discord/Telegram ที่ code block ไม่สามารถ render ภาษาไทยแบบ monospace
     ได้ — ใช้ HTML <table> ที่ browser จัด alignment อัตโนมัติ
 
-    ใช้ local font file (NotoSansThai VF) แทน Google Fonts CDN — ใช้งาน offline
-    Font จะถูกคัดลอกไปไว้เดียวกับ HTML file อัตโนมัติ
+    Args:
+        rows: list of lists (first row = headers)
+        style: "dark" (default), "light", "minimal", "compact"
 
     Returns:
-        dict with 'path' (saved HTML file path) and 'html' (raw HTML string)
+        dict with 'path' and 'html'
     """
     import os, shutil
+
+    theme = HTML_STYLES.get(style, HTML_STYLES["dark"])
+    pad = "4px 12px" if style == "compact" else "10px 24px"
 
     FONT_CACHE = r'C:\Users\csuti\AppData\Local\hermes\image_cache\NotoSansThai_VF.ttf'
     ESC_TR = str.maketrans({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})
@@ -932,11 +974,11 @@ def render_html_table(rows):
 <meta charset="utf-8">
 {font_css}
 <style>
-body {{ background: #1e1e2e; margin: 0; padding: 0; }}
-table {{ border-collapse: collapse; font-family: {font_family}; font-size: 24px; color: #cdd6f4; margin: 0; }}
-th, td {{ border: 2px solid #45475a; padding: 10px 24px; text-align: left; white-space: nowrap; }}
-th {{ background: #313244; font-weight: 700; }}
-td {{ background: #1e1e2e; }}
+body {{ background: {theme['body_bg']}; display: flex; justify-content: center; padding: 20px; }}
+table {{ border-collapse: collapse; font-family: {font_family}; font-size: 24px; color: {theme['text']}; }}
+th, td {{ border: {theme['border']}; padding: {pad}; text-align: left; white-space: nowrap; }}
+th {{ background: {theme['th_bg']}; font-weight: 700; }}
+td {{ background: {theme['td_bg']}; }}
 </style>
 </head>
 <body>
